@@ -230,6 +230,8 @@ code.xfer{display:block;font-family:var(--f-num);font-size:11px;word-break:break
 .brow{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--rule)}
 .brow .bn{display:grid;min-width:0}
 .event .opt em.fx,.spendgrid em.fx{font-style:normal;font-weight:500;font-size:12px;color:var(--accent);margin-left:6px}
+
+.agegate{border:1.5px solid var(--red);background:var(--red-soft);border-radius:var(--r);padding:14px;display:grid;gap:10px}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button>
@@ -768,7 +770,7 @@ function hazards(L,c){
   if(L.flags.dv){L.st.health=clamp(L.st.health-3,1,100);}
 }
 function emigrate(L,k,why){L.emig={from:L.cur,to:k,age:L.age};L.cur=k;L.rural=false;log(L,`${why?why+'，':''}移居${CM[k].n}。`,'world');L.st.social=clamp(L.st.social-10,0,100);}
-function marry(L,c,cost,dh,ds,label){const P=L.partner;if(!P||!P.alive)return;const bp=brideCost(L,c);if(bp){cost+=bp.cost;label+=bp.t;}P.st='mar';L.marriages++;P.rel=clamp(P.rel+10,0,100);L.money.liq-=cost;L.st.happy=clamp(L.st.happy+dh,0,100);L.st.social=clamp(L.st.social+ds,0,100);log(L,`和${P.name}结婚了，${label}${cost>0?'，花了 '+fmtMoney(cost):''}。`,'love');}
+function marry(L,c,cost,dh,ds,label){const P=L.partner;if(!P||!P.alive)return;L.flags.first=1;const bp=brideCost(L,c);if(bp){cost+=bp.cost;label+=bp.t;}P.st='mar';L.marriages++;P.rel=clamp(P.rel+10,0,100);L.money.liq-=cost;L.st.happy=clamp(L.st.happy+dh,0,100);L.st.social=clamp(L.st.social+ds,0,100);log(L,`和${P.name}结婚了，${label}${cost>0?'，花了 '+fmtMoney(cost):''}。`,'love');}
 function divorce(L,c){const P=L.partner,M=L.money;if(!P)return;M.liq*=.5;if(M.house){M.liq+=(M.house.value-M.house.bal)*.5;M.house=null;log(L,'房子卖了，钱一人一半。','money');}
   log(L,`你和${P.name}分开了。`,'love');(L.exNames=L.exNames||[]).push(P.name);L.partner=null;L.exes++;L.flags.dv=0;L.st.happy=clamp(L.st.happy-10,0,100);L.flags.solo=L.age+2;}
 function housePrice(L,c){const[mu]=baseMu(c);const ratio={CN:12,TW:12,KR:11,JP:7,HK:18}[c.k]||(c.g>30000?7:c.g>8000?8:6);return Math.exp(mu)*ratio;}
@@ -814,7 +816,7 @@ function evPropose(L,c){const P=L.partner,same=P.sex===L.sex,legal=!same||c.ssm;
     {t:'领证，简单办',d:`约 ${fmtMoney(c.g*.05)}`,w:2,f:L=>marry(L,c,c.g*.05,3,0,'简单登记')},
     {t:'办一场普通婚礼',d:`约 ${fmtMoney(c.g*.4)}`,w:2,f:L=>marry(L,c,c.g*.4,5,3,'办了婚礼')},
     {t:'办一场盛大婚礼',d:`约 ${fmtMoney(c.g*1.2)}，可能要借钱`,w:.5,f:L=>marry(L,c,c.g*1.2,7,6,'婚礼办得很隆重')}]
-   :[{t:'一起生活',d:`${c.n}当时不承认同性婚姻`,w:2,f:L=>{P.st='cohab';log(L,`和${P.name}搬到一起生活。`,'love');}}];
+   :[{t:'一起生活',d:`${c.n}当时不承认同性婚姻`,w:2,f:L=>{P.st='cohab';L.flags.first=1;log(L,`和${P.name}搬到一起生活。`,'love');}}];
   opts.push({t:'再等等',w:.5,f:L=>{}});
   return{title:'要不要结婚？',text:`你和${P.name}在一起 ${P.yrs} 年了，感情${P.rel>75?'很好':'稳定'}。`,opts};}
 function evCrisis(L,c){const P=L.partner;return{title:'感情亮起红灯',text:`你和${P.name}之间的争吵越来越多，常常几天不说话。`,opts:[
@@ -1239,7 +1241,7 @@ function compileCond(spec){
         smoker:L=>L.smoker,alone:L=>!L.partner&&L.st.social<45,sick:L=>L.st.health<45,healthy:L=>L.st.health>70,happy:L=>L.st.happy>65,sad:L=>L.st.happy<35,smart:L=>L.st.know>65,
         muslim:(L,c)=>MUSLIM.has(c.k),lunar:(L,c)=>LUNAR.has(c.k),hindu:(L,c)=>HINDU.has(c.k),buddh:(L,c)=>BUDDH.has(c.k),xian:(L,c)=>(c.r===REG.EU||c.r===REG.AM)&&!MUSLIM.has(c.k)||['PH','KE','UG','ZM','ZW','AO','CD','CG','GA','RW','BI','MW','NA','BW','ZA','LS','SZ','PG','ET','GH'].includes(c.k),
         hot:(L,c)=>HOT.has(c.k),cold:(L,c)=>['RU','CA','FI','SE','NO','IS','MN','KZ','EE','LV','LT','BY','UA'].includes(c.k),wc:(L,c)=>{const y=yearOf(L);return y>=1970&&y%4===2&&(c.g>=4000||y>=1995);},market:(L,c)=>!(SOC.has(c.k)&&yearOf(L)<(c.k==='CN'||c.k==='VN'?1992:1991)),factory:L=>!!(L.job&&/工厂|普工|流水线/.test(L.job.t)),site:L=>!!(L.job&&/建筑|工地|搬运/.test(L.job.t)),
-        demo:(L,c)=>DEMOC(c),emig:L=>!!L.emig,war:L=>histEvents(L).some(h=>h.rate),crisis:L=>L.econ<.9,old:L=>L.world==='past',fut:L=>yearOf(L)>=2030,debt:(L,c)=>L.money.debt>c.g*.2,richfam:L=>L.fpct>.75,poorfam:L=>L.fpct<.3,pet:L=>!!L.pet,drink:L=>L.alc>=1,army:L=>L.flags.army>L.age,prison:L=>L.flags.prison>L.age,abroad:L=>L.flags.abroad>L.age,dep:L=>!!L.flags.dep};
+        padult:L=>!!(L.partner&&L.partner.alive&&L.partner.age>=18),intim:L=>!!L.flags.first,noteach:L=>!L.teach,lowrel:L=>!!(L.partner&&L.partner.rel<40),demo:(L,c)=>DEMOC(c),emig:L=>!!L.emig,war:L=>histEvents(L).some(h=>h.rate),crisis:L=>L.econ<.9,old:L=>L.world==='past',fut:L=>yearOf(L)>=2030,debt:(L,c)=>L.money.debt>c.g*.2,richfam:L=>L.fpct>.75,poorfam:L=>L.fpct<.3,pet:L=>!!L.pet,drink:L=>L.alc>=1,army:L=>L.flags.army>L.age,prison:L=>L.flags.prison>L.age,abroad:L=>L.flags.abroad>L.age,dep:L=>!!L.flags.dep};
       const neg=tok[0]==='!';const f=F[neg?tok.slice(1):tok];
       if(!f)throw new Error('bad token '+tok);
       fs.push(neg?(L,c)=>!f(L,c):f);
@@ -1510,9 +1512,9 @@ function evAdultPreg(L,c,P){const who=L.sex==='F'?'你':P?P.name:'对方';return
   {t:'终止妊娠',d:'各地的法律和条件不同',w:c.g>15000?1:.4,f:L=>{bump(L,'happy',-5);log(L,'做了终止妊娠的决定。','health');}}]};}
 
 POOL.push(
- {adult:1,c:(L,c)=>adultOK(L)&&L.age<=35&&partnerAdult(L)&&!L.flags.first&&!(L.flags.firstWait>L.age),w:()=>4,b:(L,c)=>{L.flags.first=1;const P=L.partner,cons=conservative(L,c)&&P.st==='dating';return{title:'更近一步',text:`你和${P.name}的感情越来越深，开始考虑要不要更亲密。${cons?'在这里，婚前的亲密关系是要瞒着家里的。':''}`,opts:[
-   {t:'准备好了，也做好避孕',d:contraOK(L)?'':'那个年代能用的避孕方法很有限',w:1.6,f:L=>{P.rel=clamp(P.rel+8,0,100);bump(L,'happy',4);L.flags.contra=contraOK(L)?'condom':'none';if(cons&&rnd()<.15){bump(L,'social',-6);log(L,'家里知道了你们的事，闹得很不愉快。','love');}}},
-   {t:'顺其自然，没想那么多',d:'意外怀孕和感染的风险更高',w:.7,f:L=>{P.rel=clamp(P.rel+6,0,100);bump(L,'happy',3);L.flags.contra='none';if((L.sex==='F'||P.sex==='F')&&L.sex!==P.sex&&rnd()<.15)queue(L,evAdultPreg(L,c,P));stiRisk(L,c,.5);}},
+ {adult:1,c:(L,c)=>adultOK(L)&&L.age<=35&&partnerAdult(L)&&L.partner.st==='dating'&&!L.flags.first&&!(L.flags.firstWait>L.age),w:()=>4,b:(L,c)=>{L.flags.first=1;const P=L.partner,cons=conservative(L,c)&&P.st==='dating';return{title:'更近一步',text:`你和${P.name}的感情越来越深，开始考虑要不要更亲密。${cons?'在这里，婚前的亲密关系是要瞒着家里的。':''}`,opts:[
+   {t:'准备好了，也做好避孕',d:contraOK(L)?'':'那个年代能用的避孕方法很有限',w:1.6,f:L=>{P.rel=clamp(P.rel+8,0,100);bump(L,'happy',4);log(L,`那晚你们没有开灯。窗外下着小雨，你听得见彼此的心跳。第二天醒来，${P.name}还握着你的手。`,'love');L.flags.contra=contraOK(L)?'condom':'none';if(cons&&rnd()<.15){bump(L,'social',-6);log(L,'家里知道了你们的事，闹得很不愉快。','love');}}},
+   {t:'顺其自然，没想那么多',d:'意外怀孕和感染的风险更高',w:.7,f:L=>{P.rel=clamp(P.rel+6,0,100);bump(L,'happy',3);log(L,'一切发生得很快，你们都有点慌乱，也有点甜。','love');L.flags.contra='none';if((L.sex==='F'||P.sex==='F')&&L.sex!==P.sex&&rnd()<.15)queue(L,evAdultPreg(L,c,P));stiRisk(L,c,.5);}},
    {t:'还想再等等',w:cons?1.6:.7,f:L=>{if(rnd()<.5)P.rel=clamp(P.rel+3,0,100);else P.rel=clamp(P.rel-5,0,100);L.flags.first=0;L.flags.firstWait=L.age+2;}}]};}},
  {adult:1,c:(L,c)=>adultOK(L)&&L.flags.first&&partnerAdult(L)&&L.partner.sex!==L.sex&&contraOK(L)&&!L.flags.tryKids&&!L.flags.contraAsk&&L.age<=45,w:()=>2,b:(L,c)=>{L.flags.contraAsk=1;const y=yearOf(L);return{title:'避孕',text:'你们还没打算要孩子，商量用什么方法避孕。',opts:[
    {t:'避孕套',d:'也能防性传播感染',w:1.5,f:L=>{L.flags.contra='condom';}},
@@ -1520,21 +1522,35 @@ POOL.push(
    {t:'安全期，看运气',d:'很容易意外怀孕',w:.6,f:L=>{L.flags.contra='none';}},
    ...(L.kids.length>=2?[{t:'做绝育手术，不再生了',w:.5,f:L=>{L.flags.contra='perm';L.flags.childfree=1;log(L,'做了绝育手术。','health');}}]:[])]};}},
  {adult:1,c:(L,c)=>adultOK(L)&&!L.partner&&L.age<=55&&L.orient&&!(L.flags.casual>L.age)&&(!conservative(L,c)||!L.rural),w:(L,c)=>yearOf(L)>=2010?1.2:.6,b:(L,c)=>{L.flags.casual=L.age+3;const app=yearOf(L)>=2012;return{title:app?'交友软件':'一次邂逅',text:app?'你在交友软件上和一个人聊得很投机，对方约你今晚见面。':'在朋友的聚会上，你和一个刚认识的人很合得来，对方邀你一起走。',opts:[
-   {t:'去，但做好保护',w:1,f:L=>{bump(L,'happy',4);bump(L,'social',2);stiRisk(L,c,.2);if(rnd()<.15){log(L,'那次见面后，你们开始认真交往了。','love');L.flags.solo=0;}}},
-   {t:'去，不想那么多',d:'意外怀孕和感染的风险更高',w:.5,f:L=>{bump(L,'happy',4);stiRisk(L,c,1.2);if(L.sex==='F'&&L.orient!=='same'&&L.age<45&&rnd()<.06)queue(L,evAdultPreg(L,c,null));}},
+   {t:'去，但做好保护',w:1,f:L=>{L.flags.first=1;bump(L,'happy',4);bump(L,'social',2);log(L,'你们在昏暗的灯光下聊到很晚。走出门时夜风很凉，对方靠得很近……第二天早上，你望着陌生的天花板，发了一会儿呆。','love');stiRisk(L,c,.2);if(rnd()<.15){log(L,'那次见面后，你们开始认真交往了。','love');L.flags.solo=0;}}},
+   {t:'去，不想那么多',d:'意外怀孕和感染的风险更高',w:.5,f:L=>{L.flags.first=1;bump(L,'happy',4);log(L,'那一晚很热烈，也很短暂。天亮以后，你们都没有留联系方式。','love');stiRisk(L,c,1.2);if(L.sex==='F'&&L.orient!=='same'&&L.age<45&&rnd()<.06)queue(L,evAdultPreg(L,c,null));}},
    {t:'算了',w:1.2,f:L=>{}}]};}},
  {adult:1,c:(L,c)=>adultOK(L)&&partnerAdult(L)&&L.partner.st!=='dating'&&L.age>=30&&L.age<=65&&L.partner.yrs>=5&&!(L.flags.spark>L.age),w:()=>.9,b:(L,c)=>{L.flags.spark=L.age+8;const P=L.partner;return{title:'越来越少',text:`工作、孩子、疲惫……你和${P.name}之间的亲密越来越少，两个人都没提。`,opts:[
-   {t:'找个时间认真聊一聊',w:1.5,f:L=>{if(rnd()<.6){P.rel=clamp(P.rel+8,0,100);log(L,'把话说开了，两个人反而更近了。','love');}else P.rel=clamp(P.rel-3,0,100);}},
+   {t:'找个时间认真聊一聊',w:1.5,f:L=>{if(rnd()<.6){P.rel=clamp(P.rel+8,0,100);log(L,'把话说开以后，那个周末你们把孩子托给老人，订了一家小旅馆，像刚恋爱时那样，在彼此身边慢慢找回了感觉。','love');}else P.rel=clamp(P.rel-3,0,100);}},
    {t:'一起去看伴侣咨询或医生',d:`约 ${fmtMoney(c.g*.05)}`,w:c.g>15000?1:.3,f:L=>{L.money.liq-=c.g*.05;P.rel=clamp(P.rel+12,0,100);}},
    {t:'就这样吧',w:1,f:L=>{P.rel=clamp(P.rel-8,0,100);}}]};}},
  {adult:1,c:(L,c)=>adultOK(L)&&partnerAdult(L)&&L.age>=50&&L.age<=75&&!L.flags.agingSex,w:()=>.8,b:(L,c)=>{L.flags.agingSex=1;const M=L.sex==='M',y=yearOf(L),med=M?y>=1998:y>=1980;return{title:'身体变了',text:M?'这几年，你在亲密时常常力不从心，心里很不是滋味。':'更年期之后，亲密时常常不舒服，你开始躲着。',opts:[
    {t:'去看医生',d:med?'现在有不少有效的办法':'那个年代还没什么好办法',w:med?1.5:.4,f:L=>{if(med&&rnd()<.75){bump(L,'happy',4);L.partner.rel=clamp(L.partner.rel+6,0,100);log(L,'看了医生，问题解决了不少。','health');}else log(L,'看了医生，没什么改善。','health');}},
-   {t:'和伴侣坦白聊聊',w:1.2,f:L=>{L.partner.rel=clamp(L.partner.rel+4,0,100);}},
+   {t:'和伴侣坦白聊聊',w:1.2,f:L=>{L.partner.rel=clamp(L.partner.rel+4,0,100);log(L,'你们学会了慢下来。依偎着说话的时间，比从前任何时候都长。','love');}},
    {t:'不提，就这样',w:1,f:L=>{bump(L,'happy',-3);L.partner.rel=clamp(L.partner.rel-4,0,100);}}]};}},
  {adult:1,c:(L,c)=>adultOK(L)&&L.flags.casual>L.age&&!L.partner&&L.age<=60&&!L.flags.testAsk&&yearOf(L)>=1990,w:()=>.8,b:(L,c)=>{L.flags.testAsk=1;return{title:'去做个检查？',text:'社区诊所在做免费的性病和艾滋病检测。',opts:[
    {t:'去查一下',w:1.2,f:L=>{if(L.flags.sti){L.flags.sti=0;log(L,'检查出一个感染，及时治好了。','health');}else log(L,'检查结果一切正常，你松了口气。','health');}},
    {t:'不用了',w:1,f:L=>{}}]};}}
 );
+
+// quiet intimate moments between adult partners (never explicit; off in teaching mode)
+YE.push(...[
+ ['a18-75 mar padult noteach intim rep',1.2,'{p}从背后抱住你，下巴搁在你的肩上。你们就这样站了很久，谁也没说话。','p+2'],
+ ['a18-70 padult noteach intim rep',1,'一个下雨的周末，你们窝在被子里听雨，一直赖到中午。','p+2'],
+ ['a20-75 mar padult noteach intim rep',1,'吵完架的那晚，你们背对背躺着。黑暗里，是{p}先伸过手来，握住了你的手。','p+1'],
+ ['a22-70 mar padult noteach intim notpoor y1960-2100',1,'纪念日那天，你们订了一间看得见海的房间，像刚恋爱时一样，整晚都没看手机。','p+3 m-.03'],
+ ['a20-90 mar padult noteach intim rep',.8,'深夜，{p}已经睡着了。你看着那张熟悉的侧脸，想起你们第一次见面的样子。','p+1'],
+ ['a18-40 dating padult noteach intim',1.2,'你第一次在{p}那里过夜。早上醒来，{p}还在睡，阳光正好照在枕头上。','p+3'],
+ ['a18-50 dating padult noteach intim rep',1,'散步回家的路上，{p}忽然停下来，吻了你。','p+2'],
+ ['a25-45 mar kidsY padult noteach intim rep',1,'孩子终于睡着了。你们靠在客厅的沙发上，累得一句话都不想说，却谁也不想先起身。','p+1'],
+ ['a25-65 mar padult noteach intim lowrel rep',1.2,'这段时间你们几乎没有亲近过。同一张床上，像隔着一条河。','p-2'],
+ ['a60-95 mar padult noteach intim rep',1,'你们早就不像年轻时那样热烈了，可每晚睡前，{p}还是会替你掖好被角。','p+2']
+].map(([cond,w,t,fx],i)=>({id:'ad'+i,rep:/\brep\b/.test(cond),f:compileCond(cond.replace(/\brep\b/,'')),w,t,fx})));
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -1545,7 +1561,7 @@ const LENGTHS=[{n:'约 30 分钟',v:30},{n:'约 1 小时',v:60},{n:'约 1.5 小�
 const WORLDS=[{v:'past',n:'过去的世界',d:'1900–2025 年间出生，按当年的统计过一生，会遇上真实发生过的战争、饥荒和大流行。'},{v:'now',n:'现在的世界',d:'2026 年出生，今天的统计会一直沿用到最后。'},{v:'future',n:'未来的世界',d:'2027–2100 年间出生，按联合国等机构的人口推估过一生。'},{v:'any',n:'哪个都好',d:'随机落在过去、现在或未来。'}];
 const PAUSE={5:'五岁。你自己五岁时，最清楚记得的是什么？',15:'十五岁。你最想离开这里，还是留在这里？',30:'三十岁。到现在为止，哪些是自己选的，哪些是出生替你选的？',50:'五十岁。如果能对十五岁的自己说一句话，你会说什么？',70:'七十岁。这一生里，你最想再过一次的是哪一年？'};
 const REPO='https://github.com/mingxintan-coder/life-table',CUR='cszmt_cur_v1',LIVES='cszmt_lives_v2', MINE='cszmt_mine_v1', PREF='cszmt_pref_v1', THEME='cszmt_theme';
-const pref=Object.assign({world:'now',by:'',mode:'births',len:60,real:'',teach:false,mul:0,cur:'CNY'},store.get(PREF,{}));
+const pref=Object.assign({world:'now',by:'',mode:'births',len:60,real:'',teach:false,mul:0,cur:'CNY',adult:false},store.get(PREF,{}));
 setCurrency(pref.cur);
 const savePref=()=>store.set(PREF,pref);
 const G={L:null,peers:[],page:'home',tab:'life',playing:false,auto:false,soft:null,acc:0,lastT:0,ended:false,timer:null,rec:null};
@@ -1632,7 +1648,8 @@ function pHome(){
    <div class="row"><span class="lbl">一段人生的长度</span><div class="seg" id="sLen">${seg(LENGTHS,pref.len)}</div><span class="hint">这是活到当地平均寿命大约要花的时间。选 1 小时的话，一年大约 50 秒。过程中可以暂停、加速，或直接快转到下一个抉择。</span></div>
    <div class="row"><span class="lbl">你实际出生的国家/地区（选填）</span><select id="sReal"><option value="">不比较</option>${[...C].sort((a,b)=>a.n.localeCompare(b.n,'zh')).map(c=>`<option value="${c.k}" ${pref.real===c.k?'selected':''}>${esc(c.n)}</option>`).join('')}</select><span class="hint">选了之后，结束时会把这一生和你自己的出生地并排比较。只保存在这台设备上。</span></div>
    <label class="check"><input type="checkbox" id="sTeach" ${pref.teach?'checked':''}> 教学模式：减少成瘾、家暴、童婚等沉重情节，并关闭发布到追思馆和分享</label>
-   <p class="warnline">夭折、疾病、贫困、战争、饥荒和丧亲会按真实统计发生，但不描写场面。适合 15 岁以上。</p>
+   <p class="warnline">夭折、疾病、贫困、战争、饥荒和丧亲会按真实统计发生，但不描写场面。也包含成年人之间的亲密情节（点到为止）。适合 21 岁以上。</p>
+   <div class="agegate" id="ageGate" hidden><p><b>开始之前</b>：这个模拟会按真实统计呈现死亡、疾病、暴力、成瘾和自杀，也包含成年人之间的亲密情节。请确认你已年满 21 岁。</p><div class="actions"><button class="pri" id="ageOk">我已年满 21 岁</button><button id="ageNo">我还没满 21 岁</button></div></div>
    <div class="row"><span class="lbl">金额显示为</span><div class="seg" id="sCur">${seg(Object.entries(CURRENCIES).map(([v,x])=>({v,n:x.n})),pref.cur)}</div><span class="hint">收入按当地的购买力换算成你选的货币，是“过日子的体感”，不是汇率换算。</span></div>
    <div class="actions"><button class="btn big" id="bornBtn">出生</button><button class="btn ghost" id="homeMusic" aria-pressed="${Music.on}">${Music.on?'♪ 音乐：开':'♪ 音乐：关'}</button></div>
    <p class="xs muted">背景音乐是用浏览器合成的长笛，演奏几首公版古典曲目，会随人生阶段更换。</p>
@@ -1655,7 +1672,7 @@ function pHome(){
    <p>死亡：每个国家、性别、年份都用 5 岁以下死亡率确定婴幼儿段，5 岁以后用 Gompertz–Makeham 死亡力 μ(x)=A+B·e^(0.095x)，二分法求 B 使整张表的出生时预期寿命与数据一致。你个人的死亡率再乘上风险乘数（健康偏离同龄期望、吸烟、饮酒、药物、慢性病、收入位置）。死因按年龄、年代、收入水平和当地疾病负担抽取。收入按基尼系数换算成对数正态分布，金额以购买力平价美元计，显示为按中国物价换算的人民币体感金额。</p>
   </details>
   <details class="about"><summary>更新说明</summary><p>10 月 16 日：每一年都会按年龄、年代、国家、城乡和家境发生多件事；加入科技普及的时间差、各国历史节点、国家与年代特有的抉择（上山下乡、恢复高考、下岗、计划生育、越战征兵、种族隔离、两德分裂等）、更多近年战争与经济危机；可以中途离开、以后继续；增加“下一年”按钮、查看更早的记录、和实际出生地对比。</p><p>此前：童年与青春期事件、兵役、失业、性别工资差距、出国务工、犯罪与入狱、自然灾害、抑郁与自杀、婚育与养老的现实处境；195 个国家/地区 1900–2100 年数据；追思馆与人生分享。</p></details>
-  <details class="about"><summary>使用须知与隐私</summary><p>这是一个依据公开统计做的人生模拟，结果是随机的，不代表任何真实的人，也不是对任何国家或群体的评价。内容包含死亡、疾病、战争、成瘾、暴力和自杀等沉重情节，适合 15 岁以上；如果读到这些让你难受，请随时停下来，现实中需要帮助时请联系当地的求助热线。</p><p>${S.local?'你的人生记录、追思馆、分享和设置都只保存在这个浏览器里，不会上传到任何地方；清除浏览器数据就会消失，可以用“前世记录”里的导出代码备份。':'人生记录和设置只保存在这个浏览器里。安放到追思馆、分享人生和留言会保存在这个页面的共享数据里，有权限打开这个页面的人都能看到，但不会显示你的名字。'}</p></details>
+  <details class="about"><summary>使用须知与隐私</summary><p>这是一个依据公开统计做的人生模拟，结果是随机的，不代表任何真实的人，也不是对任何国家或群体的评价。内容包含死亡、疾病、战争、成瘾、暴力和自杀等沉重情节，适合 21 岁以上；如果读到这些让你难受，请随时停下来，现实中需要帮助时请联系当地的求助热线。</p><p>${S.local?'你的人生记录、追思馆、分享和设置都只保存在这个浏览器里，不会上传到任何地方；清除浏览器数据就会消失，可以用“前世记录”里的导出代码备份。':'人生记录和设置只保存在这个浏览器里。安放到追思馆、分享人生和留言会保存在这个页面的共享数据里，有权限打开这个页面的人都能看到，但不会显示你的名字。'}</p></details>
   <div class="foot"><span>这是一个人生模拟，所有人物都是虚构的。</span>
    ${S.local?`<div class="row"><span class="lbl">提意见</span><p class="small">欢迎到 <a href="${REPO}/issues" target="_blank" rel="noopener">GitHub</a> 留言。</p></div>`:`<div class="row"><span class="lbl">提意见</span><textarea id="fbTxt" maxlength="500" placeholder="哪里奇怪、想加什么，都可以写"></textarea><div class="actions"><button id="fbBtn">发送</button><span class="xs muted" id="fbMsg"></span></div></div>`}</div>
   </div>`;
@@ -1672,7 +1689,9 @@ function wHome(){
   onSeg($('#sCur'),v=>{pref.cur=v;savePref();setCurrency(v);route('home',null,true);});
   const byHint=()=>{const h=$('#byHint');if(!h)return;const v=+$('#sBy').value;const ok=pref.world==='past'?v>=1900&&v<=2025:v>=2027&&v<=2100;h.textContent=!$('#sBy').value?(pref.world==='past'?'1900–2025 年之间随机':'2027–2100 年之间随机'):ok?'':(pref.world==='past'?'请填 1900 到 2025 之间的年份':'请填 2027 到 2100 之间的年份');};
   $('#sBy').oninput=()=>{pref.by=$('#sBy').value;savePref();byHint();};byHint();
-  $('#bornBtn').onclick=()=>{if(pref.music&&!Music.on)Music.start();beginDraw();};
+  $('#bornBtn').onclick=()=>{if(!pref.adult){$('#ageGate').hidden=false;$('#ageGate').scrollIntoView({block:'center'});return;}if(pref.music&&!Music.on)Music.start();beginDraw();};
+  $('#ageOk').onclick=()=>{pref.adult=true;savePref();$('#ageGate').hidden=true;if(pref.music&&!Music.on)Music.start();beginDraw();};
+  $('#ageNo').onclick=()=>{$('#ageGate').innerHTML='<p>这个模拟只适合 21 岁以上的人。谢谢你的诚实。</p>';};
   $('#homeMusic').onclick=()=>Music.toggle();
   const rm=$('#randMemo');if(rm)rm.onclick=()=>route('memo',pick(S.mem).id);
   if($('#fbBtn'))$('#fbBtn').onclick=async()=>{const t=$('#fbTxt').value.trim();if(!t)return;try{await dbAdd('feedback',{t});$('#fbTxt').value='';$('#fbMsg').textContent='收到了，谢谢。';}catch(e){$('#fbMsg').textContent=sharedBlocked()||'没能发送，请稍后再试。';}};
