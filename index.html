@@ -150,7 +150,8 @@ details.about p{margin-top:10px;max-width:68ch}
 .sec>h4{margin:0;font-size:12px;letter-spacing:.14em;color:var(--mute);font-weight:500}
 .log{list-style:none;margin:0;padding:0;font-size:14px}
 .log li{display:grid;grid-template-columns:3.4em 1fr 1.2em;gap:8px;padding:6px 0;border-bottom:1px dashed var(--rule);cursor:pointer}
-.log li .num{color:var(--mute);font-size:12px;padding-top:2px}
+.log li .num{color:var(--mute);font-size:12px;padding-top:2px;line-height:1.3}
+.log li .num small{font-size:11px;opacity:.8}
 .log li .star{color:var(--gold);text-align:right}
 .log li.k-choice{color:var(--mute);font-size:13px}
 .log li.k-death span:nth-child(2){color:var(--bad)}
@@ -381,7 +382,7 @@ const yearOf=L=>L.by+L.age;
 const sYear=L=>L.world==='now'?2025:yearOf(L);
 const cNow=L=>CS(L.cur,sYear(L));
 function log(L,t,k){L.log.push({a:L.age,t,k:k||'n'});if(L.log.length>2000)L.log.splice(0,L.log.length-2000);}
-function queue(L,ev){L.queue.push(ev);}
+function queue(L,ev){ev.at=L.log.length;L.queue.push(ev);}
 function netWorth(L){const M=L.money,H=M.house;return M.liq+(H?H.value-H.bal:0)-M.debt;}
 function expH(L,c){return 90-Math.max(0,L.age-30)*.75-(1-Math.min(1,c.g/45000))*8;}
 function pickBirth(world,by,mode){
@@ -1544,7 +1545,7 @@ function msPerYear(){return pref.len*60000/Math.max(30,G.L.e0)/MULS[pref.mul];}
 function saveCur(){const L=G.L;if(!L||!L.alive||L.queue.length||G.ended)return;try{localStorage.setItem(CUR,JSON.stringify({L,peers:G.peers.map(p=>Object.assign({},p,{log:[]})),auto:G.auto}));}catch(e){}}
 function clearCur(){store.set(CUR,null);}
 function startLife(resume){
-  G.ended=false;G.tab='life';G.auto=!!(resume&&resume.auto);G.logAll=false;G.soft=null;G.acc=0;G.playing=true;G.page='game';
+  G.ended=false;G.tab='life';G.auto=!!(resume&&resume.auto);G.logAll=false;G.soft=null;G.acc=0;G.playing=true;G.page='game';G.shown=G.L.log.length;G.yearN=0;G.rev=0;G.pendPause=0;
   $('#mast').hidden=true;$('#dock').hidden=false;
   $('#view').innerHTML=`<div class="idbar"><div class="who"><div class="nm" id="gName"></div><div class="meta" id="gMeta"></div></div>
     <div class="agebox"><span class="num" id="gAge">0</span><small>岁</small><div class="yr num" id="gYear"></div><div class="yearbar"><i id="gProg"></i></div></div></div>
@@ -1558,32 +1559,42 @@ function paintDock(){$('#mulSeg').innerHTML=seg(MULS.map((m,i)=>({v:i,n:m+'×'})
 onSeg($('#mulSeg'),v=>{pref.mul=+v;savePref();paintDock();});
 $('#playBtn').onclick=()=>{G.playing=!G.playing;G.lastT=performance.now();paintDock();};
 $('#autoBtn').onclick=()=>{G.auto=!G.auto;paintDock();saveCur();};
-$('#nextBtn').onclick=()=>{const L=G.L;if(!L||!L.alive)return;if(G.soft){toast('先处理眼前的问题');return;}if(L.queue.length){toast('先做完眼前这个抉择');return;}G.acc=0;advance();};
+$('#nextBtn').onclick=()=>{const L=G.L;if(!L||!L.alive)return;if(G.soft){toast('先处理眼前的问题');return;}if(choiceDue()){toast('先做完眼前这个抉择');return;}revealAll();if(L.queue.length||G.soft){render();return;}G.acc=0;advance();};
 $('#dThemeBtn').onclick=()=>{$('#themeBtn').click();};
-$('#skipBtn').onclick=()=>{const L=G.L;if(!L||!L.alive||G.soft)return;if(L.queue.length){toast('先做完眼前这个抉择');return;}let n=0;while(L.alive&&!L.queue.length&&!G.soft&&n++<120)advance(true);render();};
+$('#skipBtn').onclick=()=>{const L=G.L;if(!L||!L.alive||G.soft)return;if(choiceDue()){toast('先做完眼前这个抉择');return;}revealAll();let n=0;while(L.alive&&!L.queue.length&&!G.soft&&n++<120){advance(true);revealAll();}render();};
 $('#noteBtn').onclick=()=>{if(G.L&&G.L.alive&&!G.soft){G.soft={kind:'note'};render();}};
 $('#leaveBtn').onclick=()=>{if(G.soft&&G.soft.kind==='leave')return;G.soft={kind:'leave'};render();};
 $('#musicBtn').onclick=()=>{Music.toggle();$('#musicBtn').setAttribute('aria-pressed',String(Music.on));};
+function choiceDue(){const L=G.L;return L.queue.length>0&&G.shown>=(L.queue[0].at??0);}
+function revealOne(){const L=G.L,e=L.log[G.shown];if(!e)return;if(e.a===L.age&&e.m==null)e.m=clamp(Math.ceil((G.rev+1)/(G.yearN+1)*12),1,12);G.shown++;G.rev++;}
+function revealAll(){const L=G.L;while(G.shown<L.log.length){if(choiceDue())return;revealOne();}if(G.pendPause&&!L.queue.length){G.soft={kind:'pause',a:G.pendPause};G.pendPause=0;}}
+// put lines created by a player action at the reveal point, so the story stays in order
+function inline(fn){const L=G.L,n0=L.log.length,q0=L.queue.length;fn();const add=L.log.splice(n0);const lead=n0-G.shown;L.log.splice(G.shown,0,...add);add.forEach(e=>{if(e.a===L.age&&e.m==null)e.m=clamp(Math.ceil((G.rev+1)/(G.yearN+1)*12),1,12);});G.shown+=add.length;
+  L.queue.forEach((ev,i)=>{if(ev.at>=n0)ev.at=G.shown;else if(ev.at>G.shown-add.length)ev.at+=add.length;});}
 function tick(){
   const now=performance.now(),dt=now-G.lastT;G.lastT=now;
   const L=G.L;if(!L||G.ended||G.page!=='game')return;
   if(!L.alive){finish();return;}
   const pr=$('#gProg');
   if(!G.playing||G.soft){return;}
-  if(L.queue.length){if(G.auto&&(G.acc+=dt)>Math.min(1500,msPerYear()/2)){G.acc=0;choose(autoPick(L.queue[0]));}return;}
+  if(choiceDue()){if(G.auto&&(G.acc2=(G.acc2||0)+dt)>Math.min(1500,msPerYear()/2)){G.acc2=0;choose(autoPick(L.queue[0]));}return;}
   G.acc+=dt;const ms=msPerYear();
   if(pr)pr.style.width=Math.min(100,G.acc/ms*100)+'%';
-  if(G.acc>=ms){G.acc=0;advance();}
+  const target=Math.floor(Math.min(1,G.acc/ms)*(G.yearN+1));
+  let changed=false;
+  while(G.shown<L.log.length&&G.rev<target){revealOne();changed=true;if(choiceDue())break;}
+  if(changed){render();return;}
+  if(G.acc>=ms){revealAll();if(L.queue.length||G.soft){render();return;}G.acc=0;advance();}
 }
 function advance(silent){
   const L=G.L;if(!L.alive||L.queue.length||G.soft)return;
-  step(L);
-  if(!L.alive){G.playing=false;if(!silent)render();setTimeout(finish,900);return;}
-  if(PAUSE[L.age]&&!L.notesAsked[L.age]&&!G.auto)G.soft={kind:'pause',a:L.age};
+  const n0=L.log.length;step(L);G.yearN=L.log.length-n0;G.rev=0;
+  if(!L.alive){G.shown=L.log.length;G.playing=false;if(!silent)render();setTimeout(finish,900);return;}
+  if(PAUSE[L.age]&&!L.notesAsked[L.age]&&!G.auto)G.pendPause=L.age;
   saveCur();
   if(!silent)render();
 }
-function choose(opt){const L=G.L;resolve(L,opt);G.acc=0;saveCur();render();if(!L.alive){G.playing=false;setTimeout(finish,900);}}
+function choose(opt){const L=G.L;inline(()=>resolve(L,opt));saveCur();render();if(!L.alive){G.playing=false;setTimeout(finish,900);}}
 
 function render(){
   const L=G.L;if(!L||G.page!=='game')return;const c=cNow(L);
@@ -1601,7 +1612,7 @@ function render(){
   else if(L.queue.length){const e=L.queue[0];ev=`<div class="event"><span class="tag">抉择</span><h3>${esc(e.title)}</h3><p>${esc(e.text)}</p><div class="opts">${e.opts.map((o,i)=>`<button class="opt" data-i="${i}" ${o.dis?'disabled':''}><b>${esc(o.t)}</b>${o.d?`<span>${esc(o.d)}</span>`:''}</button>`).join('')}</div>${e.help?`<p class="helpnote">${esc(e.help)}</p>`:''}</div>`;}
   $('#gEvent').innerHTML=ev;
   if(G.soft){
-    $('#softOk').onclick=()=>{const k=G.soft.kind;if(k==='leave'){G.soft=null;G.ended=true;clearInterval(G.timer);Music.stop();clearCur();route('home');return;}const t=($('#softTxt').value||'').trim();if(k==='pause')L.notesAsked[G.soft.a]=1;if(t){L.notes.push({a:L.age,q:k==='pause'?PAUSE[G.soft.a]:'',t});log(L,'「'+t+'」','note');}G.soft=null;render();};
+    $('#softOk').onclick=()=>{const k=G.soft.kind;if(k==='leave'){G.soft=null;G.ended=true;clearInterval(G.timer);Music.stop();clearCur();route('home');return;}const t=($('#softTxt').value||'').trim();if(k==='pause')L.notesAsked[G.soft.a]=1;if(t){L.notes.push({a:L.age,q:k==='pause'?PAUSE[G.soft.a]:'',t});inline(()=>log(L,'「'+t+'」','note'));}G.soft=null;render();};
     $('#softNo').onclick=()=>{if(G.soft.kind==='pause')L.notesAsked[G.soft.a]=1;G.soft=null;render();};
     if(G.soft&&G.soft.kind==='leave'){$('#softOk').textContent='离开，回到首页（不保存）';$('#softOk').insertAdjacentHTML('afterend','<button id="softPause">先离开，以后继续</button>');$('#softPause').onclick=()=>{G.soft=null;saveCur();G.ended=true;clearInterval(G.timer);Music.stop();route('home');};}
   }else if(L.queue.length)$('#gEvent').querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(L.queue[0].opts[+b.dataset.i]));
@@ -1610,12 +1621,12 @@ function render(){
   wirePanel(L,c);paintDock();
 }
 function lifeMap(hps,now){const n=Math.max(100,Math.ceil((hps.length)/10)*10);let h='';for(let a=0;a<n;a++){const v=hps[a];h+=v!=null?`<i class="on${a===now?' now':''}" title="${a}岁" style="background:color-mix(in oklab, var(--good) ${Math.round(v)}%, var(--bad))"></i>`:'<i></i>';}return`<div class="map">${h}</div><div class="legend"><span><i style="background:var(--bad)"></i>不快乐</span><span><i style="background:var(--good)"></i>快乐</span><span>一格 = 一年</span></div>`;}
-function logHTML(log,n,clickable){const items=log.map((e,i)=>({e,i})).slice(-n).reverse();return`<ul class="log${clickable?'':' static'}">${items.map(({e,i})=>`<li class="k-${e.k}" data-li="${i}"><span class="num">${e.a}岁</span><span>${esc(e.t)}</span><span class="star">${e.s?'★':''}</span></li>`).join('')}</ul>`;}
+function logHTML(log,n,clickable){const items=log.map((e,i)=>({e,i})).slice(-n).reverse();return`<ul class="log${clickable?'':' static'}">${items.map(({e,i})=>`<li class="k-${e.k}" data-li="${i}"><span class="num">${e.a}岁${e.m?'<br><small>'+e.m+'月</small>':''}</span><span>${esc(e.t)}</span><span class="star">${e.s?'★':''}</span></li>`).join('')}</ul>`;}
 function tLife(L,c){
   const items=Object.entries(FOCUS).filter(([k])=>k!=='work'||L.age>=15).map(([v,n])=>({v,n}));
   return`<div class="sec"><h4>今年的重心 · 随时可以改</h4>${L.age>=6?`<div class="seg" id="focusSeg">${seg(items,L.focus)}</div>`:'<p class="muted small">还小，正在长大。六岁以后可以选择每年的重心。</p>'}
    <p class="muted small">学习涨知识；工作更容易升职但伤身；健康降低死亡风险；家人朋友让关系变好、更容易遇见人；享受生活更开心，也更花钱。</p></div>
-   <div class="sec"><h4>人生记录 · 最新的在前 · 点一行加星</h4>${logHTML(L.log,G.logAll?3000:90,true)}${!G.logAll&&L.log.length>90?'<div><button class="linkbtn" id="moreLog">查看更早的记录</button></div>':''}</div>
+   <div class="sec"><h4>人生记录 · 最新的在前 · 点一行加星</h4>${logHTML(L.log.slice(0,G.shown),G.logAll?3000:90,true)}${!G.logAll&&G.shown>90?'<div><button class="linkbtn" id="moreLog">查看更早的记录</button></div>':''}</div>
    <details class="small muted"><summary>四个数值代表什么</summary><p>健康决定你的死亡风险乘数，也影响能不能继续工作，会随年龄自然下降。幸福是对生活的满意程度，受收入、伴侣、孩子、健康和负债影响，基准来自当地的生活满意度。知识影响升学、找工作和收入，家庭条件和当地教育水平影响更大。人际影响遇见伴侣的机会、关系好坏和晚年是否孤单。数值高只是提高可能性，不决定结果。</p></details>`;
 }
 function tFamily(L,c){
@@ -1726,8 +1737,8 @@ function wirePanel(L,c){
   onSeg(P.querySelector('#saveSeg'),v=>{L.saveRate=+v;render();});
   onSeg(P.querySelector('#allocSeg'),v=>{L.alloc=v;const w=ALLOC[v];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;render();});
   P.querySelectorAll('.log li').forEach(li=>li.onclick=()=>{const e=L.log[+li.dataset.li];if(e){e.s=!e.s;render();}});
-  P.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{if(spend(L,b.dataset.sp)){const w=ALLOC[L.alloc];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;}render();});
-  P.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+  P.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{let ok;inline(()=>{ok=spend(L,b.dataset.sp);});if(ok){const w=ALLOC[L.alloc];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;}render();});
+  P.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{inline(()=>{
     const a=b.dataset.a;
     if(a==='propose'&&!L.queue.length)queue(L,evPropose(L,c));
     else if(a==='kids'&&!L.queue.length){queue(L,evKids(L,c));L.flags.kidAsk=L.age+3;}
@@ -1738,8 +1749,7 @@ function wirePanel(L,c){
     else if(a==='medon'){L.ins.med=true;log(L,'投保了医疗险。','act');}
     else if(a==='medoff'){L.ins.med=false;log(L,'退掉了医疗险。','act');}
     else if(a==='ann'){const pr=L.money.liq*+b.dataset.p,q=annQuote(L,c,pr);L.money.liq-=pr;L.ins.ann+=q.pay;log(L,`用 ${fmtMoney(pr)} 买了终身年金，每年领 ${fmtMoney(q.pay)}。`,'act');}
-    render();
-  });
+  });render();});
 }
 
 // ---------- end ----------
