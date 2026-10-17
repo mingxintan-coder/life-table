@@ -746,7 +746,7 @@ function kin(L,c){
         else L.flags.tryKids=0;
       }else if(!(L.flags.kidAsk>L.age)&&L.age<55&&L.kids.length<8&&(same?c.g>15000&&yearOf(L)>2000:(fem!==null&&fem<45))){queue(L,evKids(L,c));L.flags.kidAsk=L.age+(c.tfr>4?1:3);}
     }
-    if(!same&&!L.flags.tryKids&&fem!==null&&fem<44&&rnd()<.02+(yearOf(L)<1965?.06:0)){log(L,'意料之外，家里要添一个孩子了。');birth(L,c);}
+    if(!same&&!L.flags.tryKids&&fem!==null&&fem<44&&rnd()<(.02+(yearOf(L)<1965?.06:0))*({none:2.5,condom:.5,pill:.12,perm:0}[L.flags.contra]??1)){log(L,'意料之外，家里要添一个孩子了。');birth(L,c);}
   }
 }
 function birth(L,c,adopt){
@@ -916,7 +916,7 @@ const POOL=[
 ];
 function randomEvent(L,c){
   if(rnd()>.5)return;
-  const ok=POOL.filter(e=>(!e.heavy||!L.teach)&&e.c(L,c));if(!ok.length)return;
+  const ok=POOL.filter(e=>(!e.heavy||!L.teach)&&(!e.adult||!L.teach)&&e.c(L,c));if(!ok.length)return;
   queue(L,wpick(ok,e=>e.w(L,c)).b(L,c));
 }
 function autoPick(ev){const ok=ev.opts.filter(o=>!o.dis);return wpick(ok,o=>o.w===undefined?1:o.w);}
@@ -1486,6 +1486,54 @@ POOL.push(
  {heavy:1,c:(L,c)=>L.cur==='KP'&&L.age>=15&&L.age<=45&&!L.flags.defAsk,w:()=>.5,b:(L,c)=>{L.flags.defAsk=1;return{title:'对岸',text:'有人悄悄告诉你，冬天江面结冰时，有中间人能带人过江。被抓到的后果非常严重。',opts:[
    {t:'冒险越境',w:.2,f:L=>{const r=rnd();if(r<.35){L.flags.defect=1;emigrate(L,'KR','辗转多国之后');bump(L,'happy',-5);}else if(r<.75){L.flags.prison=L.age+5;log(L,'你在途中被抓了回去，关进了劳教所。','world');bump(L,'health',-15);}else{log(L,'你过了江，却只能躲在邻国，不敢见人。','world');bump(L,'happy',-8);}}},
    {t:'留下',w:2,f:L=>{}}]};}}
+);
+
+// ================= adult intimacy & sexual health (adults only, never explicit; off in teaching mode) =================
+const CONSERV=new Set([...MUSLIM_K,'IN','PK','BD','NP','LK','AF','ET','NG','KE','UG','TZ','PH','PG']);
+const adultOK=(L)=>L.age>=18&&!L.teach;
+const partnerAdult=(L)=>L.partner&&L.partner.alive&&L.partner.age>=18;
+const conservative=(L,c)=>CONSERV.has(c.k)||yearOf(L)<1965;
+function contraOK(L){return yearOf(L)>=1965||cNow(L).g>15000&&yearOf(L)>=1960;}
+function stiRisk(L,c,mult){
+  // HIV follows local adult prevalence; other infections (chlamydia, gonorrhoea, syphilis, HPV) are far more common
+  const hiv=c.hiv/100*.02*mult,other=.04*mult;
+  if(rnd()<hiv){const art=yearOf(L)>=2005||(c.g>25000&&yearOf(L)>=1997);L.chronic+=art?.5:3;bump(L,'happy',-10);log(L,art?'几个月后检查出感染了艾滋病病毒。开始每天服药，病毒被压了下去。':'你感染了艾滋病病毒。那时还没有能用的药。','health');return;}
+  if(rnd()<other){L.flags.sti=L.age;queue(L,evSTI(L,c));}
+}
+function evSTI(L,c){const cost=c.g*.04;return{title:'身体不太对劲',text:'你发现身上有些不对劲的症状，可能是性传播感染。',opts:[
+  {t:'去医院检查治疗',d:`约 ${fmtMoney(cost)}，大多数一个疗程就能治好`,w:2,f:L=>{L.money.liq-=cost;L.flags.sti=0;bump(L,'happy',-2);log(L,'去医院查了，治好了。','health');}},
+  {t:'太难为情了，先拖着',d:'有些感染拖久了会影响生育和健康',w:.6,f:L=>{L.chronic+=.4;bump(L,'health',-6);if(L.sex==='F'&&rnd()<.3)L.flags.infert=1;log(L,'你一直没去看。','health');}}]};}
+function evAdultPreg(L,c,P){const who=L.sex==='F'?'你':P?P.name:'对方';return{title:'意外怀孕',text:`${who}怀孕了，这不在计划里。`,opts:[
+  ...(P&&P.alive&&P.st==='dating'?[{t:'结婚，把孩子生下来',w:1.4,f:L=>{marry(L,c,c.g*.1,1,0,'因为有了孩子');birth(L,c);}}]:[]),
+  ...(P&&P.alive&&P.st!=='dating'?[{t:'生下来',w:2,f:L=>birth(L,c)}]:[]),
+  {t:'生下来，自己抚养',w:P?.4:1,f:L=>{birth(L,c);bump(L,'happy',-3);}},
+  {t:'终止妊娠',d:'各地的法律和条件不同',w:c.g>15000?1:.4,f:L=>{bump(L,'happy',-5);log(L,'做了终止妊娠的决定。','health');}}]};}
+
+POOL.push(
+ {adult:1,c:(L,c)=>adultOK(L)&&L.age<=35&&partnerAdult(L)&&!L.flags.first&&!(L.flags.firstWait>L.age),w:()=>4,b:(L,c)=>{L.flags.first=1;const P=L.partner,cons=conservative(L,c)&&P.st==='dating';return{title:'更近一步',text:`你和${P.name}的感情越来越深，开始考虑要不要更亲密。${cons?'在这里，婚前的亲密关系是要瞒着家里的。':''}`,opts:[
+   {t:'准备好了，也做好避孕',d:contraOK(L)?'':'那个年代能用的避孕方法很有限',w:1.6,f:L=>{P.rel=clamp(P.rel+8,0,100);bump(L,'happy',4);L.flags.contra=contraOK(L)?'condom':'none';if(cons&&rnd()<.15){bump(L,'social',-6);log(L,'家里知道了你们的事，闹得很不愉快。','love');}}},
+   {t:'顺其自然，没想那么多',d:'意外怀孕和感染的风险更高',w:.7,f:L=>{P.rel=clamp(P.rel+6,0,100);bump(L,'happy',3);L.flags.contra='none';if((L.sex==='F'||P.sex==='F')&&L.sex!==P.sex&&rnd()<.15)queue(L,evAdultPreg(L,c,P));stiRisk(L,c,.5);}},
+   {t:'还想再等等',w:cons?1.6:.7,f:L=>{if(rnd()<.5)P.rel=clamp(P.rel+3,0,100);else P.rel=clamp(P.rel-5,0,100);L.flags.first=0;L.flags.firstWait=L.age+2;}}]};}},
+ {adult:1,c:(L,c)=>adultOK(L)&&L.flags.first&&partnerAdult(L)&&L.partner.sex!==L.sex&&contraOK(L)&&!L.flags.tryKids&&!L.flags.contraAsk&&L.age<=45,w:()=>2,b:(L,c)=>{L.flags.contraAsk=1;const y=yearOf(L);return{title:'避孕',text:'你们还没打算要孩子，商量用什么方法避孕。',opts:[
+   {t:'避孕套',d:'也能防性传播感染',w:1.5,f:L=>{L.flags.contra='condom';}},
+   ...(y>=1965?[{t:L.sex==='F'?'吃避孕药或上节育环':'让对方吃药或上环',d:'几乎不会意外怀孕，但不防感染',w:1.2,f:L=>{L.flags.contra='pill';}}]:[]),
+   {t:'安全期，看运气',d:'很容易意外怀孕',w:.6,f:L=>{L.flags.contra='none';}},
+   ...(L.kids.length>=2?[{t:'做绝育手术，不再生了',w:.5,f:L=>{L.flags.contra='perm';L.flags.childfree=1;log(L,'做了绝育手术。','health');}}]:[])]};}},
+ {adult:1,c:(L,c)=>adultOK(L)&&!L.partner&&L.age<=55&&L.orient&&!(L.flags.casual>L.age)&&(!conservative(L,c)||!L.rural),w:(L,c)=>yearOf(L)>=2010?1.2:.6,b:(L,c)=>{L.flags.casual=L.age+3;const app=yearOf(L)>=2012;return{title:app?'交友软件':'一次邂逅',text:app?'你在交友软件上和一个人聊得很投机，对方约你今晚见面。':'在朋友的聚会上，你和一个刚认识的人很合得来，对方邀你一起走。',opts:[
+   {t:'去，但做好保护',w:1,f:L=>{bump(L,'happy',4);bump(L,'social',2);stiRisk(L,c,.2);if(rnd()<.15){log(L,'那次见面后，你们开始认真交往了。','love');L.flags.solo=0;}}},
+   {t:'去，不想那么多',d:'意外怀孕和感染的风险更高',w:.5,f:L=>{bump(L,'happy',4);stiRisk(L,c,1.2);if(L.sex==='F'&&L.orient!=='same'&&L.age<45&&rnd()<.06)queue(L,evAdultPreg(L,c,null));}},
+   {t:'算了',w:1.2,f:L=>{}}]};}},
+ {adult:1,c:(L,c)=>adultOK(L)&&partnerAdult(L)&&L.partner.st!=='dating'&&L.age>=30&&L.age<=65&&L.partner.yrs>=5&&!(L.flags.spark>L.age),w:()=>.9,b:(L,c)=>{L.flags.spark=L.age+8;const P=L.partner;return{title:'越来越少',text:`工作、孩子、疲惫……你和${P.name}之间的亲密越来越少，两个人都没提。`,opts:[
+   {t:'找个时间认真聊一聊',w:1.5,f:L=>{if(rnd()<.6){P.rel=clamp(P.rel+8,0,100);log(L,'把话说开了，两个人反而更近了。','love');}else P.rel=clamp(P.rel-3,0,100);}},
+   {t:'一起去看伴侣咨询或医生',d:`约 ${fmtMoney(c.g*.05)}`,w:c.g>15000?1:.3,f:L=>{L.money.liq-=c.g*.05;P.rel=clamp(P.rel+12,0,100);}},
+   {t:'就这样吧',w:1,f:L=>{P.rel=clamp(P.rel-8,0,100);}}]};}},
+ {adult:1,c:(L,c)=>adultOK(L)&&partnerAdult(L)&&L.age>=50&&L.age<=75&&!L.flags.agingSex,w:()=>.8,b:(L,c)=>{L.flags.agingSex=1;const M=L.sex==='M',y=yearOf(L),med=M?y>=1998:y>=1980;return{title:'身体变了',text:M?'这几年，你在亲密时常常力不从心，心里很不是滋味。':'更年期之后，亲密时常常不舒服，你开始躲着。',opts:[
+   {t:'去看医生',d:med?'现在有不少有效的办法':'那个年代还没什么好办法',w:med?1.5:.4,f:L=>{if(med&&rnd()<.75){bump(L,'happy',4);L.partner.rel=clamp(L.partner.rel+6,0,100);log(L,'看了医生，问题解决了不少。','health');}else log(L,'看了医生，没什么改善。','health');}},
+   {t:'和伴侣坦白聊聊',w:1.2,f:L=>{L.partner.rel=clamp(L.partner.rel+4,0,100);}},
+   {t:'不提，就这样',w:1,f:L=>{bump(L,'happy',-3);L.partner.rel=clamp(L.partner.rel-4,0,100);}}]};}},
+ {adult:1,c:(L,c)=>adultOK(L)&&L.flags.casual>L.age&&!L.partner&&L.age<=60&&!L.flags.testAsk&&yearOf(L)>=1990,w:()=>.8,b:(L,c)=>{L.flags.testAsk=1;return{title:'去做个检查？',text:'社区诊所在做免费的性病和艾滋病检测。',opts:[
+   {t:'去查一下',w:1.2,f:L=>{if(L.flags.sti){L.flags.sti=0;log(L,'检查出一个感染，及时治好了。','health');}else log(L,'检查结果一切正常，你松了口气。','health');}},
+   {t:'不用了',w:1,f:L=>{}}]};}}
 );
 </script>
 <script>(function(){
