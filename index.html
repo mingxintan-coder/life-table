@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="按 195 个国家/地区 1900–2100 年的真实统计随机出生，过完一生的人生模拟。">
+<meta name="theme-color" content="#8C1D36">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -221,6 +225,11 @@ code.xfer{display:block;font-family:var(--f-num);font-size:11px;word-break:break
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:var(--r);font-size:13px;z-index:30;max-width:90vw}
 @media (max-width:480px){ .statgrid{grid-template-columns:1fr} .agebox>.num{font-size:44px} .prob{grid-template-columns:5.5em 1fr 3.4em} }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+
+.budget{display:grid;gap:8px}
+.brow{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--rule)}
+.brow .bn{display:grid;min-width:0}
+.event .opt em.fx,.spendgrid em.fx{font-style:normal;font-weight:500;font-size:12px;color:var(--accent);margin-left:6px}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button>
@@ -375,6 +384,24 @@ function epv(T,x,n,m,i){const v=1/(1+i);let A=0,a=0,S=1;for(let k=0;k<n&&x+k<=11
 
 // ---------- life ----------
 var RMDIV=2.4;
+const SPCAT={
+ meal:{n:'和家人朋友吃饭',d:'人际↑ 幸福↑',c:.03,fx:(L,c,v)=>{bump(L,'social',1.2*v);bump(L,'happy',.6*v);}},
+ health:{n:'体检和锻炼',d:'健康↑',c:.025,fx:(L,c,v)=>{bump(L,'health',1.1*v);L.chronic=Math.max(0,L.chronic-.04*v);}},
+ study:{n:'学习进修',d:'知识↑',c:.03,fx:(L,c,v)=>bump(L,'know',1.4*v)},
+ travel:{n:'旅行',d:'幸福↑ 人际↑',c:.06,fx:(L,c,v)=>{bump(L,'happy',1.6*v);bump(L,'social',.4*v);}},
+ hobby:{n:'兴趣爱好',d:'幸福↑',c:.03,fx:(L,c,v)=>bump(L,'happy',1.2*v)},
+ look:{n:'衣着打扮',d:'人际↑ 更容易遇到人',c:.025,fx:(L,c,v)=>{bump(L,'social',.6*v);bump(L,'happy',.3*v);}},
+ parents:{n:'孝敬父母',d:'人际↑',c:.04,ok:L=>L.father.alive||L.mother.alive,fx:(L,c,v)=>{bump(L,'social',.8*v);bump(L,'happy',.4*v);}},
+ kids:{n:'孩子的教育',d:'孩子更可能上大学',c:.05,ok:L=>L.kids.some(k=>k.alive&&k.age<22),fx:(L,c,v)=>{L.kids.forEach(k=>{if(k.alive&&k.age<22)k.edu=(k.edu||0)+v;});}},
+ job:{n:'求职和职业发展',d:'更容易找到工作、升职',c:.03,ok:L=>!L.retired,fx:(L,c,v)=>{L.flags.career=v;}},
+ give:{n:'捐款和公益',d:'幸福↑',c:.02,fx:(L,c,v)=>bump(L,'happy',.5*v)}};
+function budgetCost(L,c,hh){const base=Math.max(hh||0,c.g*.3);L.budget=L.budget||{};return Object.entries(SPCAT).filter(([k,s])=>!s.ok||s.ok(L)).map(([k,s])=>({k,lv:L.budget[k]||0,cost:(L.budget[k]||0)*s.c*base}));}
+function autoFocus(L){const a=L.age;if(a<6)return'grow';if(a<15)return wpick(['study','play','chores','sport','hobby'],k=>({study:3,play:2,chores:L.fpct<.4?2:.6,sport:1,hobby:1})[k]);return wpick(['work','study','family','health','hobby','fun'],k=>({work:L.job?3:.5,study:L.school?3:.6,family:L.partner||L.kids.length?2:1,health:L.age>50?2:.8,hobby:1,fun:1})[k]);}
+function religionOf(c){const k=c.k;if(MUSLIM_K.has(k))return'伊斯兰教';if(k==='IN'||k==='NP')return'印度教';if(['TH','MM','KH','LA','LK','BT','MN'].includes(k))return'佛教';if(['CN','VN','KP','JP','KR','TW','HK','MO','SG'].includes(k))return rnd()<.25?'佛教':'没有特定信仰';if(k==='IL')return'犹太教';if(c.r==='europe_central_asia'||c.r==='america'||['PH','KE','UG','ZM','ZW','AO','CD','CG','GA','RW','BI','MW','NA','BW','ZA','LS','SZ','PG','GH','ET','NG','TZ','MZ','CM','MG','AU','NZ'].includes(k))return rnd()<.85?'基督教':'没有特定信仰';return'传统信仰';}
+const MUSLIM_K=new Set('AF AL AZ BD BH BN DZ EG ID IQ IR JO KW KG KZ LB LY MA MV ML MR MY NE OM PK PS QA SA SN SD SO SY TD TJ TM TN TR UZ YE AE GM GN DJ KM'.split(' '));
+function parentJobs(L,c){const y=yearOf(L),rural=L.rural,agr=c.agr/100*(y<1970?1.6:1);
+  const dad=rural&&rnd()<Math.min(.95,agr*1.5)?'农民':L.fpct>.85?pick(['医生','工程师','公司经理','大学老师','公务员','商人']):L.fpct>.55?pick(['教师','技术员','公务员','小店老板','会计','司机']):pick(['工人','建筑工','小贩','司机','保安','零工']);
+  const mum=c.flf<35||y<1960&&!rural?'操持家务':rural&&rnd()<agr*1.4?'农民':L.fpct>.8?pick(['医生','教师','会计','公务员']):pick(['工人','店员','保洁员','裁缝','操持家务']);return[dad,mum];}
 function famName(L,lg,sex){const u=new Set([L.name,L.partner&&L.partner.name,...L.kids.map(k=>k.name),...(L.exNames||[])]);let n;for(let i=0;i<12;i++){n=genName(lg,sex);if(!u.has(n))return n;}return n;}
 function surnameOf(name,lg){const p=NAMES[lg];if(!p||!p.s)return null;return p.s.find(x=>name.startsWith(x))||null;}
 function kidName(L,c,sex){const p=NAMES[c.lg]||NAMES.en;const dad=L.sex==='M'?L.name:(L.partner?L.partner.name:null);const sn=dad?surnameOf(dad,c.lg):null;const used=new Set(L.kids.map(k=>k.name));
@@ -408,9 +435,10 @@ function newLife(o){
     ins:{term:null,med:false,ann:0,annPaid:0},smoker:false,exercise:false,chronic:0,pet:0,car:false,alc:0,gamble:false,drugs:false,
     orient:null,partner:null,marriages:0,exes:0,widowed:0,kids:[],grandkids:0,
     father:{age:Math.round(clamp(31+randn()*6,18,60)),alive:true},mother:{age:Math.round(clamp(27+randn()*5,16,45)),alive:true},
+    budget:{meal:1,health:1,hobby:1,parents:1,kids:1},religion:religionOf(c),
     sibs:poisson(Math.max(0,c.tfr-.7)),focus:'grow',log:[],hist:[],queue:[],flags:{},notes:[],notesAsked:{},spent:{},
     incomeY:0,hhY:0,consY:0,gainY:0,lifeEarn:0,emig:null,cause:null,payout:0,ret:{f:0,r:0},premY:0,econ:1});
-  const T=table(k,L.sex,sYear(L));L.e0=T.e0;
+  const T=table(k,L.sex,sYear(L));L.e0=T.e0;[L.father.job,L.mother.job]=parentJobs(L,c);
   log(L,`${by}年，${c.n}${L.rural?'的乡下':'的城里'}。你作为${L.sex==='M'?'男孩':'女孩'}出生了。家里的经济状况大约在当地第 ${Math.round(L.fpct*100)} 百分位。`,'birth');
   if(L.sibs>0)log(L,`你有 ${L.sibs} 个兄弟姐妹。`);
   record(L);
@@ -473,6 +501,7 @@ function step(L){
   L.age++;
   c=cNow(L);
   if(L.focus==='grow'&&L.age>=6)L.focus='study';
+  if(L.age===15&&['play','chores','sport'].includes(L.focus))L.focus=L.focus==='sport'?'health':'study';
   if(L.focus==='study'&&!L.school&&L.age>=25&&L.job)L.focus='work';
   stats(L,c);
   life2(L,c);if(!L.alive)return;
@@ -504,18 +533,18 @@ function histDeath(L){
   return false;
 }
 function stats(L,c){
-  const s=L.st,a=L.age,f=L.focus;
+  const s=L.st,a=L.age,f=L.focus==='auto'?autoFocus(L):L.focus;
   let dh=(expH(L,c)-s.health)*.15+randn()*2.5;
-  if(f==='health')dh+=3;if(f==='work')dh-=1.5;if(f==='fun')dh-=.5;
+  if(f==='health')dh+=3;if(f==='work')dh-=1.5;if(f==='fun')dh-=.5;if(f==='sport')dh+=2.5;if(f==='chores')dh+=.5;
   if(L.exercise)dh+=1.5;if(L.smoker&&a>25)dh-=1.2;dh-=L.chronic*1.5;if(L.alc>=2)dh-=2;if(L.drugs)dh-=5;
   s.health=clamp(s.health+dh,1,100);
   let dk;
   if(L.school)dk=2.5+L.fpct*2+c.schKid/14*2+(L.school==='uni'||L.school==='grad'?1.5:0);
   else if(a<6)dk=2+L.fpct;else dk=a<60?.4:-.4;
-  if(f==='study')dk+=L.school?2.5:2;if(f==='fun')dk-=.5;if(L.job&&L.edu>=3)dk+=.4;
+  if(f==='study')dk+=L.school?2.5:2;if(f==='fun')dk-=.5;if(f==='play'||f==='chores')dk-=.5;if(f==='hobby')dk+=.5;if(L.job&&L.edu>=3)dk+=.4;
   s.know=clamp(s.know+dk+randn()*.8,0,100);
   let ds=(50-s.social)*.05+randn()*2;
-  if(f==='family')ds+=4;if(f==='work')ds-=1.5;if(f==='study')ds-=.5;if(f==='fun')ds+=1.5;
+  if(f==='family')ds+=4;if(f==='work')ds-=1.5;if(f==='study')ds-=.5;if(f==='fun')ds+=1.5;if(f==='play')ds+=3.5;if(f==='chores')ds+=1.5;if(f==='sport')ds+=1;
   if(L.partner&&L.partner.alive)ds+=.8;if(L.pet)ds+=.5;if(a>75)ds-=.8;if(L.alc>=2||L.gamble||L.drugs)ds-=2;
   s.social=clamp(s.social+ds,0,100);
   let t=28+c.ls*6.5;
@@ -526,9 +555,10 @@ function stats(L,c){
   t+=Math.min(3,L.kids.filter(k=>k.alive).length)*1.5;
   if(L.pet)t+=1.5;if(L.emig&&a-L.emig.age<5)t-=4;if(L.flags.dv)t-=12;
   let dp=(t-s.happy)*.25+randn()*3;
-  if(f==='fun')dp+=4;if(f==='family')dp+=2;if(f==='work')dp-=1.5;if(f==='study'&&a>=12)dp-=1;
+  if(f==='fun')dp+=4;if(f==='family')dp+=2;if(f==='play')dp+=2.5;if(f==='hobby')dp+=3;if(f==='sport')dp+=1;if(f==='work')dp-=1.5;if(f==='study'&&a>=12)dp-=1;
   s.happy=clamp(s.happy+dp,0,100);
   if(L.pet&&a>=L.pet){L.pet=0;log(L,'陪伴你多年的宠物老去了。');s.happy=clamp(s.happy-5,0,100);}
+  if(L.flags.indep&&L.style&&L.style!=='normal'){const S=LIFESTYLE[L.style];bump(L,'happy',S.p);bump(L,'health',S.h);bump(L,'social',S.s);}
 }
 function schooling(L,c){
   const a=L.age;
@@ -549,7 +579,7 @@ function schooling(L,c){
 }
 function findJob(L,c){
   if(L.flags.homemaker||L.flags.prison>L.age||L.flags.army>L.age)return;
-  const p=clamp(.78-c.une/100*1.6+L.edu*.05+(L.st.know-50)*.004+(c.g>30000?.05:0)+(L.focus==='work'?.08:0)-(L.econ<.8?.25:0),.3,.97);
+  const p=clamp(.78-c.une/100*1.6+L.edu*.05+(L.st.know-50)*.004+(c.g>30000?.05:0)+(L.focus==='work'?.08:0)+(L.flags.career||0)*.04-(L.econ<.8?.25:0),.3,.97);
   if(rnd()>p){if(!L.flags.unemp)log(L,'找工作不顺利，暂时没有收入。','work');L.flags.unemp=(L.flags.unemp||0)+1;return;}
   L.flags.unemp=0;
   const g=incGroup(c);let t,hi=true;
@@ -579,13 +609,14 @@ function career(L,c){
   const J=L.job;
   if(J&&!J.own&&!L.flags.abroad&&rnd()<c.une/100*.35*(L.age>=45?1.6:1)*(L.econ<.9?2:1)&&!L.queue.length){L.job=null;bump(L,'happy',-8);queue(L,{title:'失业',text:`单位裁员，你丢了工作。当地失业率约 ${c.une.toFixed(1)}%${L.age>=45?'，你这个年纪再找工作不容易':''}。`,opts:[{t:'马上找下一份',w:2,f:L=>findJob(L,cNow(L))},{t:'先做点零工撑着',w:1,f:L=>{L.job={t:pick(['外卖骑手','网约车司机','零工','保安']),lvl:1,yrs:0,z:-.4,own:null,hi:false};log(L,'先做零工维持生活。','work');}}]});return;}
   if(J){
-    J.yrs++;
+    J.yrs++;L.workYrs=(L.workYrs||0)+1;L.jobYrs=L.jobYrs||{};L.jobYrs[J.t]=(L.jobYrs[J.t]||0)+1;L.topJob=(!L.topJob||J.lvl>=L.topJob.lvl)?{t:jobName(J),lvl:J.lvl,own:!!J.own}:L.topJob;
+    if(J.own&&J.own.mult>8&&!L.flags.bigco){L.flags.bigco=1;log(L,`你的${J.t}越做越大，成了当地有名的公司。`,'work');bump(L,'happy',8);}
     if(J.own){J.own.y++;
       if(J.own.y<=4&&rnd()<.2){log(L,'公司没能撑下去，关门了。','work');L.job=null;L.st.happy=clamp(L.st.happy-10,0,100);return;}
       if(J.own.y===4)log(L,'公司活过了最难的头几年。','work');
       J.own.mult=clamp(J.own.mult*Math.exp(.08+randn()*.3),.3,30);
     }else{
-      const pp=.07+(L.st.know-50)*.002+(L.focus==='work'?.1:0)-J.lvl*.015;
+      const pp=.07+(L.st.know-50)*.002+(L.focus==='work'?.1:0)+(L.flags.career||0)*.02-J.lvl*.015;
       if(J.lvl<4&&J.yrs>=2&&!/小贩|自耕农|佃农|牧民|渔民|雇农|零工|个体户|知青|帮家里|放牛|捡柴|街头|农民|果农|养殖户|家政|司机|骑手/.test(J.t)&&rnd()<pp){J.lvl++;log(L,`升职了：${jobName(J)}。`,'work');L.st.happy=clamp(L.st.happy+4,0,100);}
     }
   }
@@ -613,10 +644,16 @@ function money(L,c){
   inc+=L.ins.ann;L.ins.annPaid+=L.ins.ann;
   const P=L.partner,wed=P&&P.alive&&(P.st==='mar'||P.st==='cohab');
   const pinc=wed?partnerWage(L,c,P):0,hh=inc+pinc;
-  let cons=Math.max(hh*(1-L.saveRate),Math.min(c.g*.3*(wed?1.6:1),hh));
+  const LS=LIFESTYLE[L.style||'normal'];
+  let cons=Math.max(hh*(1-L.saveRate),Math.min(c.g*.3*(wed?1.6:1),hh))*LS.m;
   if(L.focus==='fun')cons+=hh*.08;if(L.focus==='health')cons+=c.g*.02;if(L.pet)cons+=c.g*.02;if(L.car)cons+=c.g*.04;
   if(L.alc>=2)cons+=c.g*.05;if(L.drugs)cons+=c.g*.2;
-  L.kids.forEach(k=>{if(!k.alive)return;if(k.age<18)cons+=c.g*.12;else if(k.uni&&k.age<22)cons+=c.g*.25;});
+  let kidC=0;L.kids.forEach(k=>{if(!k.alive)return;if(k.age<18)kidC+=c.g*.12;else if(k.uni&&k.age<22)kidC+=c.g*.25;});cons+=kidC;
+  const needC=cons-kidC;
+  // what the player chose to spend on this year, scaled down when the money is not there
+  const bud=budgetCost(L,c,hh),bsum=bud.reduce((t,x)=>t+x.cost,0),room=Math.max(0,hh-cons)+Math.max(0,M.liq)*.08,bf=bsum>0?Math.min(1,room/bsum):0;
+  L.flags.career=0;for(const x of bud)if(x.lv)SPCAT[x.k].fx(L,c,x.lv*bf);cons+=bsum*bf;
+  L.spendBreak={need:needC,kids:kidC,bud:bud.filter(x=>x.lv).map(x=>({k:x.k,cost:x.cost*bf})),bf,house:0,prem:0};
   const H=M.house;
   if(H){cons-=Math.min(cons*.2,H.value*.03);
     if(H.bal>0){const it=H.bal*H.r,pay=Math.min(H.pmt,H.bal+it);H.bal=Math.max(0,H.bal+it-pay);cons+=pay;if(H.bal===0)log(L,'房贷还清了。','money');}}
@@ -633,10 +670,13 @@ function money(L,c){
   if(L.gamble){const loss=M.liq*.15+inc*.1;gain-=loss;}
   L.ret={f:rf,r:rr};
   M.liq+=gain+(hh-cons);
-  if(M.debt>0)M.debt*=L.flags.shark?1.35:1.09;if(L.flags.shark&&M.debt<c.g*.05)L.flags.shark=0;
+  if(M.debt>0)M.debt*=L.flags.shark?1.35:1.09;
+  if(M.debt>Math.max(c.g*4,hh*3)&&!L.flags.bk){L.flags.bk=L.age;M.debt=c.g*.5;L.flags.shark=0;bump(L,'happy',-8);log(L,'债越滚越大，实在还不上了。最后申请了破产（或和债主谈了和解），大部分欠款被免除，信用也毁了。','money');}
+  else if(L.flags.bk&&L.age-L.flags.bk>=10)L.flags.bk=0;if(L.flags.shark&&M.debt<c.g*.05)L.flags.shark=0;
   if(M.liq<0){M.debt+=-M.liq;M.liq=0;}
   if(M.debt>0&&M.liq>0){const x=Math.min(M.debt,M.liq);M.debt-=x;M.liq-=x;}
   M.dep=M.liq*w.d;M.fund=M.liq*w.f;M.risky=M.liq*w.r;
+  if(L.spendBreak){L.spendBreak.prem=prem;L.spendBreak.house=H&&H.bal>=0?Math.min(H.pmt,cons):0;}
   L.incomeY=inc;L.hhY=hh;L.consY=cons;L.gainY=gain;L.lifeEarn+=inc;
   if(crash){L.flags.rebound=a+1;if(M.liq>c.g*.3)queue(L,evCrash(L,c,gain));}
 }
@@ -656,7 +696,7 @@ function love(L,c){
     if(a>=17&&a<=75&&!(L.flags.solo>a)&&L.orient){
       const trad=(c.tfr>2.8||yearOf(L)<1975)&&L.orient==='opp'&&a>=17&&a<=32&&!L.marriages;
       if(trad&&!(L.flags.matchAsk>a)&&rnd()<.35+Math.min(.3,(c.tfr-2)*.08)){queue(L,evMatch(L,c));L.flags.matchAsk=a+2;return;}
-      const p=.16+L.st.social*.004+(L.focus==='family'?.12:0)-(a>40?.05:0)-(a>60?.05:0);
+      const p=.16+L.st.social*.004+(L.focus==='family'?.12:0)+(L.budget&&L.budget.look||0)*.02-(a>40?.05:0)-(a>60?.05:0);
       if(rnd()<p)queue(L,evMeet(L,c));
     }
     return;
@@ -728,7 +768,7 @@ function hazards(L,c){
   if(L.flags.dv){L.st.health=clamp(L.st.health-3,1,100);}
 }
 function emigrate(L,k,why){L.emig={from:L.cur,to:k,age:L.age};L.cur=k;L.rural=false;log(L,`${why?why+'，':''}移居${CM[k].n}。`,'world');L.st.social=clamp(L.st.social-10,0,100);}
-function marry(L,c,cost,dh,ds,label){const P=L.partner;const bp=brideCost(L,c);if(bp){cost+=bp.cost;label+=bp.t;}P.st='mar';L.marriages++;P.rel=clamp(P.rel+10,0,100);L.money.liq-=cost;L.st.happy=clamp(L.st.happy+dh,0,100);L.st.social=clamp(L.st.social+ds,0,100);log(L,`和${P.name}结婚了，${label}${cost>0?'，花了 '+fmtMoney(cost):''}。`,'love');}
+function marry(L,c,cost,dh,ds,label){const P=L.partner;if(!P||!P.alive)return;const bp=brideCost(L,c);if(bp){cost+=bp.cost;label+=bp.t;}P.st='mar';L.marriages++;P.rel=clamp(P.rel+10,0,100);L.money.liq-=cost;L.st.happy=clamp(L.st.happy+dh,0,100);L.st.social=clamp(L.st.social+ds,0,100);log(L,`和${P.name}结婚了，${label}${cost>0?'，花了 '+fmtMoney(cost):''}。`,'love');}
 function divorce(L,c){const P=L.partner,M=L.money;if(!P)return;M.liq*=.5;if(M.house){M.liq+=(M.house.value-M.house.bal)*.5;M.house=null;log(L,'房子卖了，钱一人一半。','money');}
   log(L,`你和${P.name}分开了。`,'love');(L.exNames=L.exNames||[]).push(P.name);L.partner=null;L.exes++;L.flags.dv=0;L.st.happy=clamp(L.st.happy-10,0,100);L.flags.solo=L.age+2;}
 function housePrice(L,c){const[mu]=baseMu(c);const ratio={CN:12,TW:12,KR:11,JP:7,HK:18}[c.k]||(c.g>30000?7:c.g>8000?8:6);return Math.exp(mu)*ratio;}
@@ -790,7 +830,7 @@ function evKids(L,c){const P=L.partner,same=P.sex===L.sex;
   {t:'再等等',w:1,f:L=>{}},
   {t:L.kids.length?'不再要了':'决定不要孩子',w:(c.tfr<1.5?.5:.1)+(L.kids.length>=c.tfr?1.5:0),f:L=>{L.flags.childfree=1;log(L,L.kids.length?'你们决定不再要孩子了。':'你们决定不要孩子。','family');}}]};}
 function evKidUni(L,c,k){return{title:`${k.name}十八岁了`,text:`要不要供${k.sex==='M'?'他':'她'}读大学？四年下来大约 ${fmtMoney(c.g)}。`,opts:[
-  {t:'供孩子读大学',w:c.ter/40,f:L=>{k.uni=1;log(L,`${k.name}上了大学。`,'family');}},
+  {t:'供孩子读大学',d:`当地约 ${Math.round(c.ter)}% 的年轻人上大学；平时在孩子教育上花得越多，越容易考上`,w:c.ter/40,f:L=>{const p=clamp(c.ter/100*1.2+(k.edu||0)*.025,.05,.95);if(rnd()<p){k.uni=1;log(L,`${k.name}考上了大学。`,'family');}else log(L,`${k.name}没考上大学，开始工作了。`,'family');}},
   {t:'让孩子自己决定，去工作',w:1,f:L=>{log(L,`${k.name}开始工作了。`,'family');}}]};}
 function evTeen(L,c,k){return{title:'青春期',text:`${k.name}进入了青春期，和你说的话越来越少。`,opts:[
   {t:'多花时间，耐心聊',w:2,f:L=>{bump(L,'social',3);bump(L,'happy',2);log(L,`你和${k.name}的关系熬过了最别扭的几年。`,'family');}},
@@ -895,7 +935,40 @@ const SPEND=[
  {k:'help',n:'请保姆帮忙家务',c:.12,f:L=>{bump(L,'happy',2);if(L.partner)L.partner.rel=clamp(L.partner.rel+4,0,100);}},
  {k:'kidclass',n:'给孩子报兴趣班',c:.06,ok:L=>L.kids.some(k=>k.alive&&k.age>=5&&k.age<18),f:L=>{bump(L,'happy',2);}},
  {k:'give',n:'捐款',c:.05,f:L=>bump(L,'happy',3)}];
-function spend(L,k){const it=SPEND.find(s=>s.k===k),c=cNow(L),cost=c.g*it.c;if(L.spent[k]===L.age||L.money.liq<cost)return false;L.money.liq-=cost;L.spent[k]=L.age;it.f(L);log(L,`${it.n}，花了 ${fmtMoney(cost)}。`,'money');return true;}
+// the full spending menu: grouped, with visible effects; "fx" is shown to the player and applied
+const SPEND2=[
+ {g:'人情',k:'dine',n:'请家人朋友吃饭、送点礼',c:.03,fx:'s+4 p+2'},
+ {g:'人情',k:'parents',n:'给父母寄生活费',c:.1,fx:'s+5 p+2',ok:L=>L.father.alive||L.mother.alive},
+ {g:'人情',k:'parcare',n:'带父母看病体检',c:.06,fx:'s+4 p+1',ok:L=>(L.father.alive&&L.father.age>=60)||(L.mother.alive&&L.mother.age>=60)},
+ {g:'人情',k:'date',n:'好好约一次会',c:.03,fx:'p+3',ok:L=>L.partner&&L.partner.alive,rel:6},
+ {g:'人情',k:'party',n:'和朋友喝酒唱歌',c:.02,fx:'s+3 p+2 h-1'},
+ {g:'人情',k:'give',n:'捐款做善事',c:.05,fx:'p+3 s+1'},
+ {g:'身体',k:'gym',n:'办健身卡、请教练',c:.05,fx:'h+4',run:L=>{L.exercise=true;}},
+ {g:'身体',k:'check',n:'做一次全面体检',c:.02,fx:'h+1',run:L=>{L.chronic=Math.max(0,L.chronic-.3);}},
+ {g:'身体',k:'teeth',n:'看牙、配眼镜',c:.03,fx:'h+2 p+1'},
+ {g:'身体',k:'spa',n:'按摩、泡温泉放松',c:.03,fx:'h+1 p+3'},
+ {g:'身体',k:'therapy',n:'找心理咨询师聊聊',c:.06,fx:'p+5',run:L=>{if(L.flags.dep&&rnd()<.4){L.flags.dep=0;log(L,'咨询了一段时间，心里松快了很多。','health');}},era:L=>yearOf(L)>=1960},
+ {g:'身体',k:'nursing',n:'换一家更好的养老院',c:.5,fx:'h+3 p+3',ok:L=>L.age>=75},
+ {g:'自己',k:'books',n:'买书、订网课',c:.01,fx:'k+2 p+1'},
+ {g:'自己',k:'course',n:'报一个进修班',c:.05,fx:'k+5'},
+ {g:'自己',k:'hobby',n:'在爱好上花点钱',c:.04,fx:'p+4 k+1',ok:L=>!!L.hobby},
+ {g:'自己',k:'clothes',n:'买衣服、做头发',c:.03,fx:'p+2 s+1'},
+ {g:'自己',k:'gadget',n:'换新手机或电脑',c:.04,fx:'p+2 k+1',era:L=>yearOf(L)>=2000},
+ {g:'自己',k:'lux',n:'买一件奢侈品',c:.3,fx:'p+4 s+1'},
+ {g:'自己',k:'trip',n:'在国内旅行',c:.08,fx:'p+5 s+1'},
+ {g:'自己',k:'abroad',n:'出国旅行',c:.25,fx:'p+8 k+1',era:L=>yearOf(L)>=1985||cNow(L).g>20000},
+ {g:'自己',k:'faith',n:'朝圣、礼佛或为教会奉献',c:.15,fx:'p+6 s+2'},
+ {g:'自己',k:'lottery',n:'买一注彩票',c:.003,fx:'',run:L=>{const c=cNow(L);if(rnd()<.02){L.money.liq+=c.g*.5;log(L,'彩票中了个不小的奖！','money');bump(L,'happy',6);}},era:L=>yearOf(L)>=1990},
+ {g:'家',k:'pet',n:'养一只猫或狗',c:.05,fx:'p+4',ok:L=>!L.pet,run:L=>{L.pet=L.age+14;}},
+ {g:'家',k:'car',n:'买一辆车',c:.8,fx:'p+4 s+1',ok:L=>!L.car,run:L=>{L.car=true;},era:L=>yearOf(L)>=1950},
+ {g:'家',k:'reno',n:'把房子装修一下',c:.5,fx:'p+5',ok:L=>!!L.money.house},
+ {g:'家',k:'help',n:'请保姆或钟点工',c:.12,fx:'p+2 h+1',rel:4},
+ {g:'家',k:'kidclass',n:'给孩子报兴趣班',c:.06,fx:'p+2',ok:L=>L.kids.some(k=>k.alive&&k.age>=5&&k.age<18),run:L=>{const k=L.kids.find(k=>k.alive&&k.age>=5&&k.age<18);if(k&&rnd()<.15)k.uni=1;}},
+ {g:'家',k:'kidtutor',n:'给孩子请家教补课',c:.15,fx:'p-1',ok:L=>L.kids.some(k=>k.alive&&k.age>=10&&k.age<18),run:L=>{const k=L.kids.find(k=>k.alive&&k.age>=10&&k.age<18);if(k&&rnd()<.3)k.uni=1;}},
+ {g:'家',k:'kidhelp',n:'资助成年的孩子',c:.3,fx:'s+3 p+2',ok:L=>L.kids.some(k=>k.alive&&k.age>=20)}
+];
+function spendOk(L,it){return(!it.ok||it.ok(L))&&(!it.era||it.era(L));}
+function spend(L,k){const it=SPEND2.find(s=>s.k===k),c=cNow(L),cost=c.g*it.c;if(L.spent[k]===L.age||L.money.liq<cost||!spendOk(L,it))return false;L.money.liq-=cost;L.spent[k]=L.age;fxApply(it.fx,L,c);if(it.rel&&L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel+it.rel,0,100);if(it.run)it.run(L);log(L,`${it.n}，花了 ${fmtMoney(cost)}。`,'money');return true;}
 
 // ---------- actuarial ----------
 function termQuote(L,c,S){
@@ -913,7 +986,26 @@ function annQuote(L,c,prem){
   return{pay,a:ins.a,ame:me.a,mwr:pay*me.a/prem,m};
 }
 function persEx(L,c){const T=table(L.cur,L.sex,sYear(L)),m=riskMult(L,c);let S=1,e=0;for(let x=L.age;x<=110;x++){const q=1-Math.pow(1-T.q[x],m);e+=S-S*q*.5;S*=1-q;}return e;}
-function fmtMoney(usd){const y=usd*RMB,a=Math.abs(y);let s;if(a>=1e8)s=(a/1e8).toFixed(2)+'亿';else if(a>=1e4)s=(a/1e4).toFixed(a>=1e6?0:1)+'万';else s=Math.round(a)+'';return(y<0?'-':'')+'¥'+s;}
+// money is computed in PPP dollars and shown as the "felt" amount at the chosen currency's local prices
+const CURRENCIES={CNY:{n:'人民币',sym:'¥',r:3.6},TWD:{n:'新台币',sym:'NT$',r:14.5},HKD:{n:'港币',sym:'HK$',r:5.7},MOP:{n:'澳门元',sym:'MOP$',r:5.9},USD:{n:'美元',sym:'$',r:1}};
+var CUR=CURRENCIES.CNY;
+function setCurrency(k){CUR=CURRENCIES[k]||CURRENCIES.CNY;}
+function fmtMoney(usd){const y=usd*CUR.r,a=Math.abs(y);let s;if(a>=1e8)s=(a/1e8).toFixed(2)+'亿';else if(a>=1e4)s=(a/1e4).toFixed(a>=1e6?0:1)+'万';else s=Math.round(a)+'';return(y<0?'-':'')+CUR.sym+s;}
+const LIFESTYLE={frugal:{n:'节俭',m:.8,p:-1.5,h:-.4,s:-.5,d:'少花多存，日子紧一些'},normal:{n:'普通',m:1,p:0,h:0,s:0,d:'量入为出'},comfy:{n:'宽裕',m:1.25,p:1.5,h:.3,s:.5,d:'吃得好一点，偶尔犒劳自己'},lavish:{n:'奢华',m:1.7,p:2.5,h:-.2,s:1.5,d:'想买就买，存不下什么钱'}};
+function lifeTitle(L){
+  const a=L.age,F=L.flags,CN=k=>CM[k]?CM[k].n:k;
+  if(a<1)return'只活了几个月的人生';if(a<5)return'不满五岁就离开的人生';if(a<18)return`没能长大成人的人生`;
+  if(F.pol===2)return'当选国会议员的人生';if(F.defect)return'越过边境去了韩国的人生';if(F.bigco)return'创办出知名公司的人生';if(F.fame)return`成为知名${F.fame}的人生`;
+  if(F.pol===1)return`${L.topJob?'一边做'+L.topJob.t+'，':''}一边当地方议员的人生`;
+  if(L.cause==='战争'||L.cause==='武装冲突')return'被战火带走的人生';
+  if(L.hobby&&(L.hobbyYrs||0)>=25)return`以${L.hobby}度过的人生`;
+  if(L.emig&&L.emig.to!==L.born)return`移居${CN(L.emig.to)}的人生`;
+  if(L.topJob&&L.workYrs>=10&&L.topJob.lvl>=3)return`工作 ${L.workYrs} 年，一路升到${L.topJob.t}的人生`;
+  if(L.kids.length>=5)return`养大了 ${L.kids.length} 个孩子的人生`;
+  if(L.jobYrs){const [t,n]=Object.entries(L.jobYrs).sort((x,y)=>y[1]-x[1])[0];if(n>=10)return`做了 ${n} 年${t}的人生`;}
+  if(L.flags.homemaker)return'操持一个家的人生';
+  return'平平常常走完的人生';
+}
 
 // summary record for storage / end screen
 function summarize(L,peers){
@@ -927,7 +1019,7 @@ function summarize(L,peers){
     hp:Math.round(hist.reduce((s,h)=>s+h.hp,0)/hist.length),map:hist.map(h=>Math.min(9,Math.floor(h.hp/10))).join(''),
     notes:L.notes.map(n=>({a:n.a,t:n.t})),log:L.log.filter(e=>e.k!=='choice').slice(-600),
     peers:(peers||[]).map(p=>({nm:p.name,sex:p.sex,born:p.born,cur:p.cur,age:p.age,cause:p.cause,edu:p.edu,kids:p.kids.length,nw:Math.round(netWorth(p))})),
-    words:'',date:new Date().toISOString().slice(0,10)};
+    title:lifeTitle(L),words:'',date:new Date().toISOString().slice(0,10)};
 }
 
 if(typeof module!=='undefined')module.exports={setDiv:v=>{RMDIV=v},C,CM,CS,table,cohortL,newLife,simulate,step,termQuote,annQuote,netWorth,summarize,HIST};
@@ -1336,7 +1428,7 @@ const ERA_EV=[
 POOL.push(...ERA_EV);
 
 function yearlyTick(L,c){
-  techTick(L,c);momentTick(L,c);
+  techTick(L,c);momentTick(L,c);pathsTick(L,c);
   if(L.flags.sentBack===yearOf(L)){L.flags.sentBack=0;L.rural=false;if(L.job&&L.job.t==='知青')L.job=null;log(L,'你终于回城了。','world');bump(L,'happy',6);}
   if(L.flags.fpFine&&L.kids.length>=2){L.flags.fpFine=0;L.money.liq-=c.g*2;if(L.job&&L.job.hi&&rnd()<.5){L.job=null;log(L,'因为超生，你丢了单位的工作。','work');}log(L,`交了 ${fmtMoney(c.g*2)} 社会抚养费。`,'money');}
   L.yeUsed=L.yeUsed||{};
@@ -1371,6 +1463,30 @@ HIST.push(...[
  {ks:'SO ET KE',y0:2011,y1:2011,rate:.006,cause:'饥荒',t:'东非大旱，饥荒蔓延。'},
  {ks:'MM',y0:2021,y1:2025,rate:.001,male:2,cause:'武装冲突',t:'军队政变，全国陷入内战。'}
 ].map(h=>({...h,set:new Set(h.ks.split(' '))})));
+
+// ================= paths a life can take: hobbies, public office, fame, crossing a border =================
+const HOBBIES=[['画画','你又画完了一幅画。'],['音乐','你练了一首新曲子。'],['写作','你写完了一篇自己满意的东西。'],['跑步','你跑完了一场长跑。'],['园艺','你种的花开了一院子。'],['摄影','你拍到了一张很满意的照片。'],['书法','你写了一幅字挂在墙上。'],['下棋','你在棋社赢了一盘难下的棋。'],['钓鱼','你在河边坐了一整天。'],['跳舞','你学会了一支新舞。']];
+function pathsTick(L,c){
+  const a=L.age,y=yearOf(L);
+  if(L.hobby){L.hobbyYrs=(L.hobbyYrs||0)+1;if(rnd()<.25){const h=HOBBIES.find(x=>x[0]===L.hobby);log(L,h[1],'yr');bump(L,'happy',1);}}
+  if(L.flags.pol&&rnd()<.15)log(L,pick(['你在议会里为修一条路争了很久。','选民来办公室找你反映问题。','你的提案通过了。','有人在报纸上批评你。']),'work');
+}
+POOL.push(
+ {c:(L,c)=>L.age>=10&&L.age<=35&&!L.hobby&&!L.flags.hobAsk,w:()=>1.5,b:(L,c)=>{L.flags.hobAsk=1;const opts=HOBBIES.filter(([h])=>!(h==='摄影'&&yearOf(L)<1950)).sort(()=>rnd()-.5).slice(0,3);return{title:'喜欢做的事',text:'你发现自己特别喜欢做一件事，一做就忘了时间。',opts:[
+   ...opts.map(([h])=>({t:h,w:1,f:L=>{L.hobby=h;L.hobbyYrs=0;log(L,`你迷上了${h}。`,'yr');bump(L,'happy',3);}})),{t:'没什么特别的爱好',w:.6,f:L=>{}}]};}},
+ {c:(L,c)=>L.age>=32&&L.age<=65&&!L.flags.pol&&!L.flags.polAsk&&L.st.social>=62&&L.st.know>=50&&DEMOC(c),w:(L,c)=>.8+(L.st.social-60)*.05,b:(L,c)=>{L.flags.polAsk=1;const p=clamp(.2+(L.st.social-60)*.012+(L.st.know-50)*.006+(L.fpct-.5)*.2,.08,.65);return{title:'参选地方议员',text:`街坊邻居推你出来参选地方议员。以你的人缘，当选的机会大约 ${Math.round(p*100)}%。`,opts:[
+   {t:'出来参选',d:`竞选要花约 ${fmtMoney(c.g*.2)}`,w:1,f:L=>{L.money.liq-=c.g*.2;if(rnd()<p){L.flags.pol=1;bump(L,'social',8);bump(L,'happy',6);log(L,'你当选了地方议员。','work');}else{log(L,'你落选了。','work');bump(L,'happy',-3);}}},
+   {t:'算了，不蹚这浑水',w:1.2,f:L=>{}}]};}},
+ {c:(L,c)=>L.flags.pol===1&&L.age>=42&&L.age<=68&&!L.flags.pol2Ask,w:()=>2,b:(L,c)=>{L.flags.pol2Ask=1;const p=clamp(.12+(L.st.social-65)*.01,.05,.4);return{title:'更大的舞台',text:`党内希望你去竞选国会议员。胜算大约 ${Math.round(p*100)}%。`,opts:[
+   {t:'去选',d:`要花约 ${fmtMoney(c.g*.8)}`,w:1,f:L=>{L.money.liq-=c.g*.8;if(rnd()<p){L.flags.pol=2;bump(L,'happy',8);log(L,'你当选了国会议员。','work');}else{log(L,'国会选举落败了。','work');bump(L,'happy',-5);}}},
+   {t:'留在地方',w:1.3,f:L=>{}}]};}},
+ {c:(L,c)=>!L.flags.fame&&!L.flags.fameAsk&&L.age>=18&&L.age<=55&&(L.hobby||L.st.know>=70),w:(L,c)=>yearOf(L)>=2010?1.2:.6,b:(L,c)=>{L.flags.fameAsk=1;const online=yearOf(L)>=2010,kind=online?'创作者':(L.hobby==='画画'?'画家':L.hobby==='音乐'?'音乐人':'作家');const p=online?.08:.05;return{title:online?'把作品发到网上':'投稿',text:online?`你开始把自己的${L.hobby||'想法'}拍成视频、写成文章发到网上。`:`你把自己的作品寄给了${kind==='画家'?'画廊':kind==='音乐人'?'唱片公司':'出版社'}。`,opts:[
+   {t:'坚持做下去',d:'绝大多数人没有回音',w:1,f:L=>{if(rnd()<p){L.flags.fame=kind;bump(L,'happy',10);L.money.liq+=c.g*2;log(L,`你的作品火了，你成了小有名气的${kind}。`,'work');}else{log(L,'做了几年，看的人不多。','work');}}},
+   {t:'当个爱好就好',w:1.5,f:L=>{}}]};}},
+ {heavy:1,c:(L,c)=>L.cur==='KP'&&L.age>=15&&L.age<=45&&!L.flags.defAsk,w:()=>.5,b:(L,c)=>{L.flags.defAsk=1;return{title:'对岸',text:'有人悄悄告诉你，冬天江面结冰时，有中间人能带人过江。被抓到的后果非常严重。',opts:[
+   {t:'冒险越境',w:.2,f:L=>{const r=rnd();if(r<.35){L.flags.defect=1;emigrate(L,'KR','辗转多国之后');bump(L,'happy',-5);}else if(r<.75){L.flags.prison=L.age+5;log(L,'你在途中被抓了回去，关进了劳教所。','world');bump(L,'health',-15);}else{log(L,'你过了江，却只能躲在邻国，不敢见人。','world');bump(L,'happy',-8);}}},
+   {t:'留下',w:2,f:L=>{}}]};}}
+);
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -1381,7 +1497,8 @@ const LENGTHS=[{n:'约 30 分钟',v:30},{n:'约 1 小时',v:60},{n:'约 1.5 小�
 const WORLDS=[{v:'past',n:'过去的世界',d:'1900–2025 年间出生，按当年的统计过一生，会遇上真实发生过的战争、饥荒和大流行。'},{v:'now',n:'现在的世界',d:'2026 年出生，今天的统计会一直沿用到最后。'},{v:'future',n:'未来的世界',d:'2027–2100 年间出生，按联合国等机构的人口推估过一生。'},{v:'any',n:'哪个都好',d:'随机落在过去、现在或未来。'}];
 const PAUSE={5:'五岁。你自己五岁时，最清楚记得的是什么？',15:'十五岁。你最想离开这里，还是留在这里？',30:'三十岁。到现在为止，哪些是自己选的，哪些是出生替你选的？',50:'五十岁。如果能对十五岁的自己说一句话，你会说什么？',70:'七十岁。这一生里，你最想再过一次的是哪一年？'};
 const REPO='https://github.com/mingxintan-coder/life-table',CUR='cszmt_cur_v1',LIVES='cszmt_lives_v2', MINE='cszmt_mine_v1', PREF='cszmt_pref_v1', THEME='cszmt_theme';
-const pref=Object.assign({world:'now',by:'',mode:'births',len:60,real:'',teach:false,mul:0},store.get(PREF,{}));
+const pref=Object.assign({world:'now',by:'',mode:'births',len:60,real:'',teach:false,mul:0,cur:'CNY'},store.get(PREF,{}));
+setCurrency(pref.cur);
 const savePref=()=>store.set(PREF,pref);
 const G={L:null,peers:[],page:'home',tab:'life',playing:false,auto:false,soft:null,acc:0,lastT:0,ended:false,timer:null,rec:null};
 let toastT;function toast(t){let el=$('#toast');if(!el){el=document.createElement('div');el.id='toast';el.className='toast';document.body.appendChild(el);}el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{el.hidden=true;},2600);}
@@ -1468,6 +1585,7 @@ function pHome(){
    <div class="row"><span class="lbl">你实际出生的国家/地区（选填）</span><select id="sReal"><option value="">不比较</option>${[...C].sort((a,b)=>a.n.localeCompare(b.n,'zh')).map(c=>`<option value="${c.k}" ${pref.real===c.k?'selected':''}>${esc(c.n)}</option>`).join('')}</select><span class="hint">选了之后，结束时会把这一生和你自己的出生地并排比较。只保存在这台设备上。</span></div>
    <label class="check"><input type="checkbox" id="sTeach" ${pref.teach?'checked':''}> 教学模式：减少成瘾、家暴、童婚等沉重情节，并关闭发布到追思馆和分享</label>
    <p class="warnline">夭折、疾病、贫困、战争、饥荒和丧亲会按真实统计发生，但不描写场面。适合 15 岁以上。</p>
+   <div class="row"><span class="lbl">金额显示为</span><div class="seg" id="sCur">${seg(Object.entries(CURRENCIES).map(([v,x])=>({v,n:x.n})),pref.cur)}</div><span class="hint">收入按当地的购买力换算成你选的货币，是“过日子的体感”，不是汇率换算。</span></div>
    <div class="actions"><button class="btn big" id="bornBtn">出生</button><button class="btn ghost" id="homeMusic" aria-pressed="${Music.on}">${Music.on?'♪ 音乐：开':'♪ 音乐：关'}</button></div>
    <p class="xs muted">背景音乐是用浏览器合成的长笛，演奏几首公版古典曲目，会随人生阶段更换。</p>
    <p class="small muted">设置不用改，直接出生也可以。</p>
@@ -1489,6 +1607,7 @@ function pHome(){
    <p>死亡：每个国家、性别、年份都用 5 岁以下死亡率确定婴幼儿段，5 岁以后用 Gompertz–Makeham 死亡力 μ(x)=A+B·e^(0.095x)，二分法求 B 使整张表的出生时预期寿命与数据一致。你个人的死亡率再乘上风险乘数（健康偏离同龄期望、吸烟、饮酒、药物、慢性病、收入位置）。死因按年龄、年代、收入水平和当地疾病负担抽取。收入按基尼系数换算成对数正态分布，金额以购买力平价美元计，显示为按中国物价换算的人民币体感金额。</p>
   </details>
   <details class="about"><summary>更新说明</summary><p>10 月 16 日：每一年都会按年龄、年代、国家、城乡和家境发生多件事；加入科技普及的时间差、各国历史节点、国家与年代特有的抉择（上山下乡、恢复高考、下岗、计划生育、越战征兵、种族隔离、两德分裂等）、更多近年战争与经济危机；可以中途离开、以后继续；增加“下一年”按钮、查看更早的记录、和实际出生地对比。</p><p>此前：童年与青春期事件、兵役、失业、性别工资差距、出国务工、犯罪与入狱、自然灾害、抑郁与自杀、婚育与养老的现实处境；195 个国家/地区 1900–2100 年数据；追思馆与人生分享。</p></details>
+  <details class="about"><summary>使用须知与隐私</summary><p>这是一个依据公开统计做的人生模拟，结果是随机的，不代表任何真实的人，也不是对任何国家或群体的评价。内容包含死亡、疾病、战争、成瘾、暴力和自杀等沉重情节，适合 15 岁以上；如果读到这些让你难受，请随时停下来，现实中需要帮助时请联系当地的求助热线。</p><p>${S.local?'你的人生记录、追思馆、分享和设置都只保存在这个浏览器里，不会上传到任何地方；清除浏览器数据就会消失，可以用“前世记录”里的导出代码备份。':'人生记录和设置只保存在这个浏览器里。安放到追思馆、分享人生和留言会保存在这个页面的共享数据里，有权限打开这个页面的人都能看到，但不会显示你的名字。'}</p></details>
   <div class="foot"><span>这是一个人生模拟，所有人物都是虚构的。</span>
    ${S.local?`<div class="row"><span class="lbl">提意见</span><p class="small">欢迎到 <a href="${REPO}/issues" target="_blank" rel="noopener">GitHub</a> 留言。</p></div>`:`<div class="row"><span class="lbl">提意见</span><textarea id="fbTxt" maxlength="500" placeholder="哪里奇怪、想加什么，都可以写"></textarea><div class="actions"><button id="fbBtn">发送</button><span class="xs muted" id="fbMsg"></span></div></div>`}</div>
   </div>`;
@@ -1502,6 +1621,7 @@ function wHome(){
   onSeg($('#sLen'),v=>{pref.len=+v;savePref();$('#sLen').innerHTML=seg(LENGTHS,v);});
   $('#sReal').onchange=e=>{pref.real=e.target.value;savePref();};
   $('#sTeach').onchange=e=>{pref.teach=e.target.checked;savePref();};
+  onSeg($('#sCur'),v=>{pref.cur=v;savePref();setCurrency(v);route('home',null,true);});
   const byHint=()=>{const h=$('#byHint');if(!h)return;const v=+$('#sBy').value;const ok=pref.world==='past'?v>=1900&&v<=2025:v>=2027&&v<=2100;h.textContent=!$('#sBy').value?(pref.world==='past'?'1900–2025 年之间随机':'2027–2100 年之间随机'):ok?'':(pref.world==='past'?'请填 1900 到 2025 之间的年份':'请填 2027 到 2100 之间的年份');};
   $('#sBy').oninput=()=>{pref.by=$('#sBy').value;savePref();byHint();};byHint();
   $('#bornBtn').onclick=()=>{if(pref.music&&!Music.on)Music.start();beginDraw();};
@@ -1521,6 +1641,7 @@ function beginDraw(){
   $('#view').innerHTML=`<div class="draw"><span class="lbl">${esc(by)} 年 · 正在决定出生地</span><div class="spin" id="spin">…</div></div>`;
   let i=0;const iv=setInterval(()=>{$('#spin').textContent=pick(C).n;if(++i>18){clearInterval(iv);$('#spin').textContent=cname(G.L.born);setTimeout(showRegister,700);}},80);
 }
+function drawP(L){const y=L.world==='now'?2025:L.by,f=d=>pref.mode==='pop'?at(d.s.p,y):at(d.s.b,y);const tot=C.reduce((t,d)=>t+f(d),0);return f(CM[L.born])/tot;}
 function showRegister(){
   const L=G.L,c=cNow(L);
   G.page='register';
@@ -1534,6 +1655,11 @@ function showRegister(){
     <div>5 岁前夭折概率</div><div class="num">${(c.u5/10*(L.sex==='M'?1.08:.92)).toFixed(1)}%</div>
     <div>当地人均收入</div><div>${fmtMoney(c.g)} / 年</div>
     <div>兄弟姐妹</div><div>${L.sibs} 个</div>
+    <div>父亲</div><div>${L.father.age} 岁 · ${esc(L.father.job||'')}</div>
+    <div>母亲</div><div>${L.mother.age} 岁 · ${esc(L.mother.job||'')}</div>
+    <div>家里的信仰</div><div>${esc(L.religion||'')}</div>
+    <div>抽中这里的概率</div><div class="num">${(drawP(L)*100).toFixed(drawP(L)<.01?2:1)}%</div>
+    ${pref.real&&pref.real!==L.born&&CM[pref.real]?`<div>和${esc(cname(pref.real))}比</div><div class="small">预期寿命 ${table(pref.real,L.sex,sYear(L)).e0.toFixed(1)} 岁 · 5 岁前夭折 ${(CS(pref.real,sYear(L)).u5/10).toFixed(1)}% · 人均收入 ${fmtMoney(CS(pref.real,sYear(L)).g)}</div>`:''}
     <div>名字</div><div class="namebox"><input id="nameIn" value="${esc(L.name)}" maxlength="12" aria-label="名字"><button class="btn ghost" id="reName">换一个</button></div>
    </div>
    <p class="small muted">同一秒，世界上另有 4 个婴儿出生：${G.peers.map(p=>esc(cname(p.born))).join('、')}。他们会和你并排活下去。</p>
@@ -1580,7 +1706,7 @@ function tick(){
   const L=G.L;if(!L||G.ended||G.page!=='game')return;
   if(!L.alive){finish();return;}
   const pr=$('#gProg');
-  if(!G.playing||G.soft){return;}
+  if(!G.playing||G.soft||G.tab==='money'){return;}
   if(choiceDue()){if(G.auto&&(G.acc2=(G.acc2||0)+dt)>Math.min(1500,msPerYear()/2)){G.acc2=0;choose(autoPick(L.queue[0]));}return;}
   G.acc+=dt;const ms=msPerYear();
   if(pr)pr.style.width=Math.min(100,G.acc/ms*100)+'%';
@@ -1590,9 +1716,10 @@ function tick(){
   if(changed){render();return;}
   if(G.acc>=ms){revealAll();if(L.queue.length||G.soft){render();return;}G.acc=0;advance();}
 }
+function meetPeer(L){if(L.age<16||L.flags.metPeer||rnd()>.05)return;const p=G.peers.find(p=>(p.alive||p.age>L.age)&&p.hist[L.age]&&((p.emig&&p.emig.age<=L.age?p.emig.to:p.born)===L.cur));if(!p)return;L.flags.metPeer=1;log(L,`你在${cname(L.cur)}偶然认识了${p.name}。聊着聊着才发现，你们是同一年、同一天、同一秒出生的。`,'yr');bump(L,'social',3);bump(L,'happy',2);}
 function advance(silent){
   const L=G.L;if(!L.alive||L.queue.length||G.soft)return;
-  const n0=L.log.length;step(L);G.yearN=L.log.length-n0;G.rev=0;
+  const n0=L.log.length;step(L);if(L.alive)meetPeer(L);G.yearN=L.log.length-n0;G.rev=0;
   if(!L.alive){G.shown=L.log.length;G.playing=false;if(!silent)render();setTimeout(finish,900);return;}
   if(PAUSE[L.age]&&!L.notesAsked[L.age]&&!G.auto)G.pendPause=L.age;
   saveCur();
@@ -1600,6 +1727,14 @@ function advance(silent){
 }
 function choose(opt){const L=G.L;inline(()=>resolve(L,opt));saveCur();render();if(!L.alive){G.playing=false;setTimeout(finish,900);}}
 
+// try each option many times on the live state and roll back, to show which way it tends to push the four stats and money
+function cap(o){if(o===null||typeof o!=='object')return{p:o};if(Array.isArray(o))return{r:o,a:o.map(cap)};const m={};for(const k in o)m[k]=cap(o[k]);return{r:o,m};}
+function res(c){if('p' in c)return c.p;const o=c.r;if(c.a){o.length=0;c.a.forEach(x=>o.push(res(x)));}else{for(const k of Object.keys(o))if(!(k in c.m))delete o[k];for(const k in c.m)o[k]=res(c.m[k]);}return o;}
+function previewFx(L,e){if(e._fx)return e._fx;const c0=cNow(L),snap=cap(L),N=14,out=[];
+  for(const o of e.opts){if(o.dis){out.push('');continue;}const d={health:0,happy:0,know:0,social:0},base={...L.st},nw0=netWorth(L);let money=0,dead=0,rel=0;const P0=L.partner,r0=P0?P0.rel:0;
+    for(let i=0;i<N;i++){try{o.f(L);}catch(err){}for(const k in d)d[k]+=(L.st[k]-base[k])/N;money+=(netWorth(L)-nw0)/N;if(!L.alive)dead++;if(P0)rel+=((L.partner===P0?P0.rel:0)-r0)/N;res(snap);}
+    const t=[];const nm={health:'健康',happy:'幸福',know:'知识',social:'人际'};for(const k in d)if(Math.abs(d[k])>=1.5)t.push(nm[k]+(d[k]>0?'↑':'↓'));if(Math.abs(money)>=c0.g*.05)t.push('钱'+(money>0?'↑':'↓'));if(P0&&Math.abs(rel)>=4)t.push('感情'+(rel>0?'↑':'↓'));if(dead>0)t.push('有风险');out.push(t.join(' '));}
+  e._fx=out;return out;}
 function render(){
   const L=G.L;if(!L||G.page!=='game')return;const c=cNow(L);
   $('#gName').textContent=L.name;
@@ -1613,7 +1748,7 @@ function render(){
   if(G.soft&&G.soft.kind==='pause')ev=`<div class="event soft"><span class="tag">停一下</span><h3>${PAUSE[G.soft.a]}</h3><textarea id="softTxt" maxlength="200" placeholder="想到什么就写一句。不写也可以。"></textarea><div class="actions"><button class="pri" id="softOk">记下来</button><button id="softNo">跳过</button></div></div>`;
   else if(G.soft&&G.soft.kind==='note')ev=`<div class="event soft"><span class="tag">写下想法</span><h3>${L.age} 岁，${esc(L.name)}此刻在想什么？</h3><textarea id="softTxt" maxlength="200"></textarea><div class="actions"><button class="pri" id="softOk">记下来</button><button id="softNo">算了</button></div></div>`;
   else if(G.soft&&G.soft.kind==='leave')ev=`<div class="event soft"><span class="tag">离开</span><h3>要中途离开这一生吗？</h3><p>可以先离开，以后从首页接着过；也可以彻底放弃。</p><div class="actions"><button class="pri" id="softOk">离开，回到首页</button><button id="softNo">继续活下去</button></div></div>`;
-  else if(L.queue.length){const e=L.queue[0];ev=`<div class="event"><span class="tag">抉择</span><h3>${esc(e.title)}</h3><p>${esc(e.text)}</p><div class="opts">${e.opts.map((o,i)=>`<button class="opt" data-i="${i}" ${o.dis?'disabled':''}><b>${esc(o.t)}</b>${o.d?`<span>${esc(o.d)}</span>`:''}</button>`).join('')}</div>${e.help?`<p class="helpnote">${esc(e.help)}</p>`:''}</div>`;}
+  else if(L.queue.length){const e=L.queue[0];ev=`<div class="event"><span class="tag">抉择</span><h3>${esc(e.title)}</h3><p>${esc(e.text)}</p><div class="opts">${(()=>{const fx=previewFx(L,e);return e.opts.map((o,i)=>`<button class="opt" data-i="${i}" ${o.dis?'disabled':''}><b>${esc(o.t)}${fx[i]?` <em class="fx">${esc(fx[i])}</em>`:''}</b>${o.d?`<span>${esc(o.d)}</span>`:''}</button>`).join('');})()}</div>${e.help?`<p class="helpnote">${esc(e.help)}</p>`:''}</div>`;}
   $('#gEvent').innerHTML=ev;
   if(G.soft){
     $('#softOk').onclick=()=>{const k=G.soft.kind;if(k==='leave'){G.soft=null;G.ended=true;clearInterval(G.timer);clearCur();route('home');return;}const t=($('#softTxt').value||'').trim();if(k==='pause')L.notesAsked[G.soft.a]=1;if(t){L.notes.push({a:L.age,q:k==='pause'?PAUSE[G.soft.a]:'',t});inline(()=>log(L,'「'+t+'」','note'));}G.soft=null;render();};
@@ -1627,9 +1762,11 @@ function render(){
 function lifeMap(hps,now){const n=Math.max(100,Math.ceil((hps.length)/10)*10);let h='';for(let a=0;a<n;a++){const v=hps[a];h+=v!=null?`<i class="on${a===now?' now':''}" title="${a}岁" style="background:color-mix(in oklab, var(--good) ${Math.round(v)}%, var(--bad))"></i>`:'<i></i>';}return`<div class="map">${h}</div><div class="legend"><span><i style="background:var(--bad)"></i>不快乐</span><span><i style="background:var(--good)"></i>快乐</span><span>一格 = 一年</span></div>`;}
 function logHTML(log,n,clickable){const items=log.map((e,i)=>({e,i})).slice(-n).reverse();return`<ul class="log${clickable?'':' static'}">${items.map(({e,i})=>`<li class="k-${e.k}" data-li="${i}"><span class="num">${e.a}岁${e.m?'<br><small>'+e.m+'月</small>':''}</span><span>${esc(e.t)}</span><span class="star">${e.s?'★':''}</span></li>`).join('')}</ul>`;}
 function tLife(L,c){
-  const items=Object.entries(FOCUS).filter(([k])=>k!=='work'||L.age>=15).map(([v,n])=>({v,n}));
+  const KIDF=[['study','学习','知识↑'],['play','和朋友玩','人际↑ 幸福↑'],['chores','帮家里干活','人际↑ 知识↓'],['sport','运动','健康↑'],['hobby','兴趣爱好','幸福↑'],['auto','不设定','让它自己安排']];
+  const ADF=[['work','工作','升职↑ 健康↓'],['study','学习进修','知识↑'],['family','家人朋友','人际↑ 感情↑'],['health','锻炼身体','健康↑'],['hobby','兴趣爱好','幸福↑'],['fun','享受生活','幸福↑ 花钱↑'],['auto','不设定','让它自己安排']];
+  const items=(L.age<15?KIDF:ADF).filter(([k])=>k!=='work'||L.age>=15).map(([v,n,h])=>({v,n:`${n}（${h}）`}));
   return`<div class="sec"><h4>今年的重心 · 随时可以改</h4>${L.age>=6?`<div class="seg" id="focusSeg">${seg(items,L.focus)}</div>`:'<p class="muted small">还小，正在长大。六岁以后可以选择每年的重心。</p>'}
-   <p class="muted small">学习涨知识；工作更容易升职但伤身；健康降低死亡风险；家人朋友让关系变好、更容易遇见人；享受生活更开心，也更花钱。</p></div>
+   <p class="muted small">每年选一件事当重心，对应的数值会涨得快一些。选“不设定”就每年随机安排。</p></div>
    <div class="sec"><h4>人生记录 · 最新的在前 · 点一行加星</h4>${logHTML(L.log.slice(0,G.shown),G.logAll?3000:90,true)}${!G.logAll&&G.shown>90?'<div><button class="linkbtn" id="moreLog">查看更早的记录</button></div>':''}</div>
    <details class="small muted"><summary>四个数值代表什么</summary><p>健康决定你的死亡风险乘数，也影响能不能继续工作，会随年龄自然下降。幸福是对生活的满意程度，受收入、伴侣、孩子、健康和负债影响，基准来自当地的生活满意度。知识影响升学、找工作和收入，家庭条件和当地教育水平影响更大。人际影响遇见伴侣的机会、关系好坏和晚年是否孤单。数值高只是提高可能性，不决定结果。</p></details>`;
 }
@@ -1658,12 +1795,21 @@ function tMoney(L,c){
   const M=L.money,H=M.house,pr=housePrice(L,c);
   const rows=[['存款',M.dep],['指数基金',M.fund],['高风险资产',M.risky],...(H?[['房产市值',H.value],['房贷余额',-H.bal]]:[]),...(M.debt>0?[['其他负债',-M.debt]]:[])];
   const nwHist=L.hist.slice(18).filter(Boolean).map(h=>h.nw);
-  return`<div class="sec"><h4>花钱 · 每样每年一次 · 可用资金 ${fmtMoney(M.liq)}</h4><div class="spendgrid">${SPEND.filter(s=>!s.ok||s.ok(L)).map(s=>{const cost=c.g*s.c,done=L.spent[s.k]===L.age;return`<button data-sp="${s.k}" ${done||M.liq<cost?'disabled':''}>${esc(s.n)}<span>${done?'今年已做':fmtMoney(cost)}</span></button>`;}).join('')}</div></div>
+  const FXN={h:'健康',p:'幸福',k:'知识',s:'人际'};
+  const fxText=it=>[...(it.fx||'').matchAll(/([hpks])([+-][\d.]+)/g)].map(m=>FXN[m[1]]+' '+m[2]).concat(it.rel?['伴侣关系 +'+it.rel]:[]).join(' · ')||'看运气';
+  const groups=[...new Set(SPEND2.map(s=>s.g))];
+  const LV=['不花','少','中','多'],sb=L.spendBreak;
+  const budHTML=`<div class="sec"><h4>每年固定的花销 · 按家庭收入的比例</h4><div class="budget">${budgetCost(L,c,L.hhY).map(x=>{const sp=SPCAT[x.k];return`<div class="brow"><div class="bn"><b>${esc(sp.n)}</b><span class="xs muted">${esc(sp.d)} · 每档约收入的 ${Math.round(sp.c*100)}%</span></div><div class="seg" data-bk="${x.k}">${seg(LV.map((n,i)=>({v:i,n})),x.lv)}</div></div>`;}).join('')}</div>${sb&&sb.bud.length&&sb.bf<.999?`<p class="small muted">去年钱不够，这些花销只做到了大约 ${Math.round(sb.bf*100)}%。</p>`:''}</div>
+   ${sb?`<div class="sec"><h4>去年的钱花在哪</h4><div class="tbl"><div>吃穿住行等基本开销</div><div>${fmtMoney(sb.need-(sb.house||0)-(sb.prem||0))}</div>${sb.kids?`<div>养孩子</div><div>${fmtMoney(sb.kids)}</div>`:''}${sb.house?`<div>房贷</div><div>${fmtMoney(sb.house)}</div>`:''}${sb.prem?`<div>保险费</div><div>${fmtMoney(sb.prem)}</div>`:''}${sb.bud.filter(x=>x.cost>0).map(x=>`<div>${esc(SPCAT[x.k].n)}</div><div>${fmtMoney(x.cost)}</div>`).join('')}<div><b>结余（存下来或投资）</b></div><div><b>${fmtMoney(L.hhY-L.consY)}</b></div></div></div>`:''}`;
+  return`<p class="helpnote">打开这一页时，时间会停下来，慢慢想。固定花销每年自动执行，一次性花销每样一年只能买一次。</p>${budHTML}
+   <div class="sec"><h4>一次性花销</h4></div>
+   <div class="sec"><h4>手头可用的钱 ${fmtMoney(M.liq)}</h4>${groups.map(g=>{const its=SPEND2.filter(s=>s.g===g&&spendOk(L,s));return its.length?`<div class="sec"><h4>${g}</h4><div class="spendgrid">${its.map(s=>{const cost=c.g*s.c,done=L.spent[s.k]===L.age,poor=M.liq<cost;return`<button data-sp="${s.k}" ${done||poor?'disabled':''}>${esc(s.n)}<span>${done?'今年已经做过':fmtMoney(cost)+(poor?' · 钱不够':'')}</span><em class="fx">${esc(fxText(s))}</em></button>`;}).join('')}</div></div>`:'';}).join('')}</div>
+   <div class="sec"><h4>生活方式</h4><div class="seg" id="styleSeg">${seg(Object.entries(LIFESTYLE).map(([k,s])=>({v:k,n:s.n})),L.style||'normal')}</div><p class="small muted">${esc(LIFESTYLE[L.style||'normal'].d)}。日常开销 ×${LIFESTYLE[L.style||'normal'].m}，每年会慢慢影响幸福、健康和人际。</p></div>
    <div class="sec"><h4>资产负债</h4><div class="tbl">${rows.map(([n,v])=>`<div>${n}</div><div class="${v<0?'neg':''}">${fmtMoney(v)}</div>`).join('')}<div><b>净资产</b></div><div><b>${fmtMoney(netWorth(L))}</b></div></div>${spark(nwHist)}</div>
    <div class="sec"><h4>今年现金流</h4><div class="tbl"><div>你的收入${L.job?'（'+esc(jobName(L.job))+'）':L.retired?'（退休金）':''}</div><div>${fmtMoney(L.incomeY)}</div><div>家庭总收入</div><div>${fmtMoney(L.hhY)}</div><div>支出（含房贷、孩子、保费 ${fmtMoney(L.premY)}）</div><div class="neg">${fmtMoney(-L.consY)}</div><div>投资收益${L.gamble?'（含赌博亏损）':''}</div><div class="${L.gainY<0?'neg':'pos'}">${fmtMoney(L.gainY)}</div><div>一生累计收入</div><div>${fmtMoney(L.lifeEarn)}</div></div>
    <p class="small muted">去年基金收益 ${(L.ret.f*100).toFixed(1)}%，高风险资产 ${(L.ret.r*100).toFixed(1)}%，存款 2%。${L.econ<1?' 当前经济危机中，收入打了折扣。':''}</p></div>
    <div class="sec"><h4>储蓄率</h4><div class="seg" id="saveSeg">${seg([0,.1,.2,.3,.4].map(v=>({v:String(v),n:Math.round(v*100)+'%'})),String(L.saveRate))}</div><p class="small muted">收入里存下来的比例。收入很低时，基本生活优先，实际存不了这么多。</p></div>
-   <div class="sec"><h4>投资配置</h4><div class="seg" id="allocSeg">${seg(Object.entries(ALLOC).map(([k,a])=>({v:k,n:`${a.n} ${a.d*100}/${a.f*100}/${a.r*100}`})),L.alloc)}</div><p class="small muted">存款 / 指数基金 / 高风险资产，每年按比例再平衡。基金长期年化约 6%、波动 16%；高风险资产波动 55%；每年约 6% 的概率遇上大跌。</p></div>
+   <div class="sec"><h4>钱放在哪里</h4><div class="seg" id="allocSeg">${seg(Object.entries(ALLOC).map(([k,a])=>({v:k,n:{con:'存银行',bal:'存款加基金',agg:'主要买股票'}[k]})),L.alloc)}</div><p class="small muted">${{con:'八成存款、两成基金',bal:'四成存款、五成半基金、半成高风险资产',agg:'一成存款、七成基金、两成高风险资产'}[L.alloc]}，每年按比例再平衡。基金长期年化约 6%、波动 16%；高风险资产波动 55%；每年约 6% 的概率遇上大跌。</p></div>
    <div class="sec"><h4>住房</h4>${H?`<p>有房，每年还贷 ${fmtMoney(H.bal>0?H.pmt:0)}，能抵掉一部分房租开销。</p><div class="actions"><button data-a="sell">卖掉房子（到手约 ${fmtMoney(H.value-H.bal)}）</button></div>`:`<p>当地一套普通住房约 ${fmtMoney(pr)}，首付三成加税费需 ${fmtMoney(pr*.33)}。</p><div class="actions"><button class="pri" data-a="buy" ${M.liq<pr*.33||(SOC.has(c.k)&&yearOf(L)<1995)?'disabled':''}>买房</button>${SOC.has(c.k)&&yearOf(L)<1995?'<span class="xs muted">这个年代住房由单位分配，还不能自由买卖</span>':''}</div>`}</div>`;
 }
 function survChart(L){
@@ -1737,8 +1883,10 @@ function tPeers(L){
 function wirePanel(L,c){
   const P=$('#gPanel');
   onSeg(P.querySelector('#focusSeg'),v=>{L.focus=v;render();});
+  P.querySelectorAll('[data-bk]').forEach(el=>onSeg(el,v=>{L.budget[el.dataset.bk]=+v;render();}));
   const ml=P.querySelector('#moreLog');if(ml)ml.onclick=()=>{G.logAll=true;render();};
   onSeg(P.querySelector('#saveSeg'),v=>{L.saveRate=+v;render();});
+  onSeg(P.querySelector('#styleSeg'),v=>{L.style=v;inline(()=>log(L,`生活方式改成了「${LIFESTYLE[v].n}」。`,'money'));render();});
   onSeg(P.querySelector('#allocSeg'),v=>{L.alloc=v;const w=ALLOC[v];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;render();});
   P.querySelectorAll('.log li').forEach(li=>li.onclick=()=>{const e=L.log[+li.dataset.li];if(e){e.s=!e.s;render();}});
   P.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{let ok;inline(()=>{ok=spend(L,b.dataset.sp);});if(ok){const w=ALLOC[L.alloc];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;}render();});
@@ -1765,6 +1913,18 @@ function finish(){
   const a=store.get(LIVES,[]);a.unshift(rec);store.set(LIVES,a.slice(0,10));
   G.rec=rec;route('end',rec.id);
 }
+function happiest(r){const m=String(r.map||'');let best=-1,i0=0;for(let i=0;i<m.length;i++)if(+m[i]>best){best=+m[i];i0=i;}return i0;}
+function shareImage(r){const W=1080,H=1350,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  const css=getComputedStyle(document.documentElement),col=n=>css.getPropertyValue(n).trim()||'#000';const serif='"Noto Serif SC","Songti SC",serif',sans='"Noto Sans SC","PingFang SC",sans-serif';
+  x.fillStyle='#F4F1EB';x.fillRect(0,0,W,H);x.fillStyle='#8C1D36';x.fillRect(0,0,W,14);
+  x.textAlign='center';x.fillStyle='#4F5E65';x.font='500 34px '+sans;x.fillText('死 亡 登 记',W/2,130);
+  x.fillStyle='#13212A';x.font='900 110px '+serif;x.fillText(r.nm,W/2,290);x.font='600 54px '+serif;x.fillText(r.by+' – '+(r.by+r.age),W/2,380);
+  x.font='400 40px '+sans;x.fillStyle='#4F5E65';x.fillText(cname(r.born)+(r.cur!==r.born?' → '+cname(r.cur):'')+' · '+(r.sex==='M'?'男':'女')+' · '+(r.age===0?'不满一岁':'享年 '+r.age+' 岁'),W/2,470);x.fillText('死因：'+r.cause,W/2,530);
+  x.fillStyle='#8C1D36';x.font='900 150px '+serif;x.fillText(Math.round(r.out)+'%',W/2,730);x.fillStyle='#13212A';x.font='400 36px '+sans;x.fillText('比同年同地出生的人中这么多人活得久',W/2,790);
+  x.textAlign='left';x.font='400 38px '+sans;const lines=[EDU[r.edu]+(r.job?' · '+r.job:''),(r.mar?'结婚 '+r.mar+' 次':'未婚')+' · '+r.kids+' 个孩子',r.map?'最幸福的一年：'+happiest(r)+' 岁':''].filter(Boolean);lines.forEach((t,i)=>x.fillText(t,120,900+i*62));
+  if(r.words){x.fillStyle='#8C1D36';x.font='600 40px '+serif;const w=r.words.slice(0,40);x.textAlign='center';x.fillText('「'+w+'」',W/2,1130);}
+  x.textAlign='center';x.fillStyle='#4F5E65';x.font='400 30px '+sans;x.fillText('此生生命表 · '+(S.local?location.host+location.pathname:'claude.ai'),W/2,H-70);
+  return cv.toDataURL('image/png');}
 function findRec(id){return(G.rec&&G.rec.id===id)?G.rec:store.get(LIVES,[]).find(r=>r.id===id);}
 function pEnd(id){
   const r=findRec(id);if(!r)return`<div class="page"><p>这段记录已经不在这台设备上了。</p><div class="actions"><button data-go="home">回到首页</button></div></div>`;
@@ -1778,7 +1938,7 @@ function pEnd(id){
     <div class="form"><div>出生地</div><div>${esc(cname(r.born))}${r.cur!==r.born?'（后移居'+esc(cname(r.cur))+'）':''}</div><div>性别</div><div>${r.sex==='M'?'男':'女'}</div><div>享年</div><div>${r.age===0?'不满一岁':r.age+' 岁'}</div><div>死因</div><div>${esc(r.cause)}</div><div>出生时预期寿命</div><div>${r.e0} 岁</div></div>
     ${r.cause==='自杀'?`<p class="helpnote">${esc(HELP_MH)}</p>`:''}
     <div><span class="big-stat">${Math.round(r.out)}%</span><p class="small">${r.by} 年在${esc(cname(r.born))}出生的${r.sex==='M'?'男性':'女性'}中，你比这么多人活得久。</p></div></div>
-   <section><div class="h2">这一生</div><div class="tbl"><div>最高学历</div><div>${EDU[r.edu]}${r.major?'（'+MAJ[r.major].n+'）':''}</div><div>最后的工作</div><div>${esc(r.job||'—')}</div><div>婚姻</div><div>${marr}</div><div>孩子 / 孙辈</div><div>${r.kids} / ${r.gk}</div><div>一生累计收入</div><div>${fmtMoney(r.earn)}</div><div>身后资产</div><div>${fmtMoney(r.nw)}</div>${r.payout?`<div>寿险赔付给家人</div><div class="pos">${fmtMoney(r.payout)}</div>`:''}${r.ann?`<div>年金累计领取</div><div>${fmtMoney(r.ann)}</div>`:''}<div>平均幸福</div><div>${r.hp} / 100</div></div></section>
+   <section><div class="h2">这一生</div><div class="tbl"><div>最高学历</div><div>${EDU[r.edu]}${r.major?'（'+MAJ[r.major].n+'）':''}</div><div>最后的工作</div><div>${esc(r.job||'—')}</div><div>婚姻</div><div>${marr}</div><div>孩子 / 孙辈</div><div>${r.kids} / ${r.gk}</div><div>一生累计收入</div><div>${fmtMoney(r.earn)}</div><div>身后资产</div><div>${fmtMoney(r.nw)}</div>${r.payout?`<div>寿险赔付给家人</div><div class="pos">${fmtMoney(r.payout)}</div>`:''}${r.ann?`<div>年金累计领取</div><div>${fmtMoney(r.ann)}</div>`:''}<div>平均幸福</div><div>${r.hp} / 100</div>${r.map?`<div>最幸福的一年</div><div>${happiest(r)} 岁</div>`:''}</div></section>
    ${r.stars&&r.stars.length?`<section><div class="h2">你加了星的时刻</div><ul class="log static">${r.stars.map(n=>`<li class="k-n"><span class="num">${n.a}岁</span><span>${esc(n.t)}</span><span class="star">★</span></li>`).join('')}</ul></section>`:''}
    ${r.notes.length?`<section><div class="h2">你在路上写下的话</div><ul class="log static">${r.notes.map(n=>`<li class="k-note"><span class="num">${n.a}岁</span><span>「${esc(n.t)}」</span><span></span></li>`).join('')}</ul></section>`:''}
    <section><div class="h2">同一秒出生的人</div>${r.peers.map(p=>`<div class="peer dead"><span class="pn">${esc(p.nm)}</span><span class="muted small">${esc(cname(p.born))} · ${p.sex==='M'?'男':'女'}</span><span class="ps">${p.age===0?'不满一岁':p.age+'岁'}离世 · ${esc(p.cause)} · ${EDU[p.edu]} · ${p.kids}个孩子 · 身后 ${fmtMoney(p.nw)}</span></div>`).join('')}</section>
@@ -1788,7 +1948,7 @@ function pEnd(id){
     <p class="small muted">安放到追思馆后，别人可以为这一生点蜡烛、留言。分享人生不带名字，只留下这一生和你的感受。</p>
     ${blocked?`<p class="small muted">${esc(blocked)}</p>`:`<div class="actions"><button class="pri" id="toHall" ${r.hallId?'disabled':''}>${r.hallId?'已安放到追思馆':'安放到追思馆'}</button></div>
     <textarea id="feel" maxlength="300" placeholder="分享这一生给大家时，想说点什么（选填）"></textarea><div class="actions"><button id="toStories" ${r.storyId?'disabled':''}>${r.storyId?'已分享':'分享这段人生'}</button><span class="xs muted" id="pMsg"></span></div>`}
-    <div class="actions"><button id="copyCard">复制分享卡文字</button></div></section>
+    <div class="actions"><button id="copyCard">复制分享卡文字</button><button id="imgCard">生成分享图片</button></div><div id="imgOut"></div></section>
    <section><div class="h2">完整记录</div>${logHTML(r.log,400,false)}</section>
    <div class="actions"><button class="btn" id="again">再出生一次</button><button class="btn ghost" data-go="home">回到首页</button></div></div>`;
 }
@@ -1798,6 +1958,7 @@ function wEnd(id){
   const r=findRec(id);if(!r)return;
   $('#again').onclick=beginDraw;
   $('#saveWords').onclick=()=>{r.words=$('#words').value.trim();updRec(r);$('#wMsg').textContent='已留下。';};
+  $('#imgCard').onclick=()=>{const url=shareImage(r);$('#imgOut').innerHTML=`<img src="${url}" alt="${esc(r.nm)}的人生卡片" style="max-width:360px;width:100%;border:1px solid var(--rule);border-radius:6px"><p class="xs muted">长按或右键图片即可保存。</p>${S.local?`<a href="${url}" download="${esc(r.nm)}-此生生命表.png">下载图片</a>`:''}`;};
   $('#copyCard').onclick=()=>copyText(`${r.nm}，${r.by} 年生于${cname(r.born)}，${r.age===0?'不满一岁':'享年 '+r.age+' 岁'}，因${r.cause}离世。${lineOf(r)}${r.words?'「'+r.words+'」':''}——此生生命表`);
   const th=$('#toHall');if(th)th.onclick=async()=>{r.words=$('#words').value.trim();th.disabled=true;
     try{const id=await dbAdd('memorial',{nm:r.nm,sex:r.sex,born:r.born,cur:r.cur,by:r.by,age:r.age,cause:r.cause,world:r.world,words:r.words,line:lineOf(r),map:r.map,notes:r.notes.slice(0,5),owner:S.uid||''});r.hallId=id;updRec(r);const mine=store.get(MINE,[]);mine.unshift(id);store.set(MINE,mine.slice(0,50));th.textContent='已安放到追思馆';toast('已安放到追思馆');}
@@ -1935,5 +2096,6 @@ route('home');
 })();
 </script>
 
+<script>if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
 </html>
