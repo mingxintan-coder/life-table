@@ -563,7 +563,7 @@ function newLife(o){
   L.zf=clamp(randn(),-2.6,2.6);L.fpct=ncdf(L.zf);
   L.rural=rnd()>c.urb/100;
   Object.assign(L,{
-    st:{health:clamp(84-(1-Math.min(1,c.g/45000))*8+randn()*5,40,98),happy:clamp(30+c.ls*6+randn()*6,20,90),know:3,social:50,mind:clamp(70+randn()*8,40,95)},
+    st:{health:clamp(84-(1-Math.min(1,c.g/45000))*8+randn()*5+L.zf*3,40,98),happy:clamp(30+c.ls*6+randn()*6,20,90),know:3,social:50,mind:clamp(70+randn()*8,40,95)},
     edu:0,school:null,schoolEnd:0,major:null,job:null,lastWage:0,formal:false,retired:false,
     money:{liq:0,dep:0,fund:0,risky:0,house:null,debt:0},alloc:'bal',saveRate:.2,
     ins:{term:null,med:false,ann:0,annPaid:0},smoker:false,exercise:false,chronic:0,pet:0,car:false,alc:0,gamble:false,drugs:false,
@@ -601,7 +601,7 @@ function die(L,cause){
   record(L);
 }
 function riskMult(L,c){
-  let m=L.age<5?Math.exp(-.3*L.zf):Math.exp(.02*(expH(L,c)-L.st.health))/RMDIV;
+  let m=L.age<5?Math.exp(-.55*L.zf):Math.exp(.02*(expH(L,c)-L.st.health)-.17*L.zf)/RMDIV;
   if(L.age>=5){
     if(L.smoker)m*=L.age>35?1.5:1.1;
     if(L.st.mind!=null&&L.st.mind<25)m*=1.15;
@@ -700,8 +700,8 @@ function stats(L,c){
   if(L.exercise)dh+=1.5;if(L.smoker&&a>25)dh-=1.2;dh-=L.chronic*1.5;if(L.alc>=2)dh-=2;if(L.drugs)dh-=5;
   s.health=clamp(s.health+dh,1,100);
   let dk;
-  if(L.school)dk=2.5+L.fpct*2+c.schKid/14*2+(L.school==='uni'||L.school==='grad'?1.5:0);
-  else if(a<6)dk=2+L.fpct;else dk=a<60?.4:-.4;
+  if(L.school)dk=2.5+(L.fpct-.5)*5+c.schKid/14*2+(L.school==='uni'||L.school==='grad'?1.5:0);
+  else if(a<6)dk=1.5+L.fpct*2;else dk=a<60?.4:-.4;
   if(f==='study')dk+=L.school?2.5:2;if(f==='fun')dk-=.5;if(f==='play'||f==='chores')dk-=.5;if(f==='hobby')dk+=.5;if(L.job&&L.edu>=3)dk+=.4;
   s.know=clamp(s.know+dk+randn()*.8,0,100);
   let ds=(50-s.social)*.05+randn()*2;
@@ -730,10 +730,10 @@ function schooling(L,c){
   const a=L.age;
   if(a===6&&!L.flags.cm){
     const fem=L.sex==='F'?(c.sgap>1.5?.1:0)+(yearOf(L)<1960&&c.g<8000?.12:0):0;
-    const p=clamp(.35+c.schKid/9*.6+L.fpct*.1-fem-(L.rural?.08:0),.12,.995);
+    const p=clamp(.3+c.schKid/9*.6+L.fpct*.3-fem-(L.rural?.08:0),.12,.995);
     if(rnd()<p){L.school='pri';log(L,'背上书包，上小学了。','edu');}else log(L,'家里没能送你上学。','edu');
   }
-  if(L.school==='pri'&&a===12){L.edu=1;const p=clamp(c.schKid/12*.95+L.fpct*.25-.15-(L.rural?.08:0),.04,.985);
+  if(L.school==='pri'&&a===12){L.edu=1;const p=clamp(c.schKid/12*.95+L.fpct*.5-.27-(L.rural?.08:0),.04,.985);
     if(rnd()<p)queue(L,evSecondary(L,c));else{L.school=null;log(L,'小学毕业了。家里没有余力供你继续读书。','edu');}}
   if(L.school==='sec'&&a===18){L.edu=2;L.school=null;log(L,'中学毕业。','edu');queue(L,evExam(L,c));}
   if(L.flags.retake===a){L.flags.retake=0;L.flags.retaking=0;queue(L,evExam(L,c,true));}
@@ -760,7 +760,7 @@ function findJob(L,c){
 }
 function wage(L,c){
   const[mu,s]=baseMu(c),J=L.job;
-  let z=.3*L.zf+[-.45,-.3,.05,.55,.75][L.edu]+(MAJB[L.major]||0)*(L.edu>=3?1:0)+(L.st.know-50)*.012+(J.lvl-1)*.22+Math.min(J.yrs,20)*.015+J.z;
+  let z=.5*L.zf+[-.45,-.3,.05,.55,.75][L.edu]+(MAJB[L.major]||0)*(L.edu>=3?1:0)+(L.st.know-50)*.012+(J.lvl-1)*.22+Math.min(J.yrs,20)*.015+J.z;
   if(L.emig&&L.age-L.emig.age<8)z-=.3;
   if(L.st.health<35)z-=.3;
   if(L.rural&&L.edu<2)z-=.35;
@@ -800,7 +800,7 @@ function money(L,c){
   const a=L.age,M=L.money;
   if(M.liq<0){M.debt+=-M.liq;M.liq=0;}
   if(a<18||(L.school&&!L.job)){L.incomeY=0;L.hhY=0;L.consY=0;L.gainY=0;return;}
-  if(!L.flags.indep){L.flags.indep=1;const gift=c.g*.25*Math.exp(1.3*L.zf);M.liq+=gift;if(gift>c.g*.3)log(L,`家里给了你一笔启动资金：${fmtMoney(gift)}。`,'money');}
+  if(!L.flags.indep){L.flags.indep=1;const gift=c.g*.25*Math.exp(1.6*L.zf);M.liq+=gift;if(gift>c.g*.3)log(L,`家里给了你一笔启动资金：${fmtMoney(gift)}。`,'money');}
   let inc=0;
   if(L.flags.prison>a)inc=0;
   else if(L.flags.army>a)inc=c.g*.08;
@@ -846,7 +846,7 @@ function money(L,c){
   L.incomeY=inc;L.hhY=hh;L.consY=cons;L.gainY=gain;L.lifeEarn+=inc;
   if(crash){L.flags.rebound=a+1;if(M.liq>c.g*.3)queue(L,evCrash(L,c,gain));}
 }
-function mkPartner(L,c,sex,age){return{name:famName(L,c.lg,sex),sex,age,trait:pick(TRAITS),compat:clamp(55+randn()*18,5,95),rel:55,z:.15*(L.edu-2)+.6*randn()+.2*L.zf,st:'dating',yrs:0,alive:true};}
+function mkPartner(L,c,sex,age){return{name:famName(L,c.lg,sex),sex,age,trait:pick(TRAITS),compat:clamp(55+randn()*18,5,95),rel:55,z:.15*(L.edu-2)+.6*randn()+.35*L.zf,st:'dating',yrs:0,alive:true};}
 function partnerSex(L){return L.orient==='same'?L.sex:L.orient==='both'?(rnd()<.5?'M':'F'):(L.sex==='M'?'F':'M');}
 function love(L,c){
   const a=L.age;
@@ -888,7 +888,7 @@ function kin(L,c){
       p.alive=false;log(L,`${w}去世了，享年${p.age}岁。`,'death');L.st.happy=clamp(L.st.happy-(L.age<18?18:11),0,100);
       if(!L.father.alive&&!L.mother.alive){
         if(L.age<18)log(L,'双亲都不在了，你由亲戚抚养长大。');
-        else{const amt=c.g*1.5*Math.exp(1.4*L.zf)/(1+L.sibs)*(L.fpct>.2?1:.2);if(amt>c.g*.2){L.money.liq+=amt;log(L,`你继承了父母留下的遗产：${fmtMoney(amt)}。`,'money');}}
+        else{const amt=c.g*1.5*Math.exp(1.7*L.zf)/(1+L.sibs)*(L.fpct>.2?1:.2);if(amt>c.g*.2){L.money.liq+=amt;log(L,`你继承了父母留下的遗产：${fmtMoney(amt)}。`,'money');}}
       }
     }
   }
@@ -946,7 +946,7 @@ const bump=(L,k,v)=>{if(L.st[k]==null)L.st[k]=60;L.st[k]=clamp(L.st[k]+v,k==='he
 function evSecondary(L,c){return{title:'小学毕业了',text:`十二岁。家里${L.fpct<.3?'手头很紧':L.fpct<.7?'过得去':'条件不错'}。当时当地成年人平均只受过 ${c.sch.toFixed(1)} 年教育。`,opts:[
   {t:'继续读中学',w:3,f:L=>{L.school='sec';log(L,'升入中学。','edu');}},
   {t:'出去干活，帮补家里',d:'学历会停在小学',w:L.fpct<.3?1.5:.3,f:L=>{L.school=null;log(L,'你离开了学校。','edu');}}]};}
-function admitP(L,c){return clamp(c.ter/100*1.15*(.35+L.st.know/80)+L.fpct*.12,.02,.96);}
+function admitP(L,c){return clamp(c.ter/100*1.15*(.35+L.st.know/80)*(.55+L.fpct*.9)+(L.fpct-.5)*.2,.02,.96);}
 function evExam(L,c,re){const p=admitP(L,c);return{title:re?'第二次升学考试':'升学考试',text:`以你现在的知识水平，录取概率大约是 ${Math.round(p*100)}%。当时当地同龄人上大学的比例约为 ${Math.round(c.ter)}%。`,opts:[
   {t:'报考大学',w:3,f:L=>{if(rnd()<p){log(L,'考上了大学。','edu');queue(L,evMajor(L,c));}else{log(L,'落榜了。','edu');queue(L,evFail(L,c));}}},
   {t:'不考了，直接工作',w:1,f:L=>findJob(L,c)}]};}
@@ -2045,7 +2045,7 @@ const _findJob=findJob;
 findJob=function(L,c){
   if(L.flags.homemaker||L.flags.prison>L.age||L.flags.army>L.age)return;
   if(L.queue.some(e=>e.offer))return;
-  const p=clamp(.78-c.une/100*1.6+L.edu*.05+(L.st.know-50)*.004+(c.g>30000?.05:0)+(L.focus==='work'?.08:0)+(L.flags.career||0)*.04-(L.econ<.8?.25:0),.3,.97);
+  const p=clamp(.78-c.une/100*1.6+L.edu*.05+L.zf*.06+(L.st.know-50)*.004+(c.g>30000?.05:0)+(L.focus==='work'?.08:0)+(L.flags.career||0)*.04-(L.econ<.8?.25:0),.3,.97);
   if(rnd()>p){if(!L.flags.unemp)log(L,'找工作不顺利，暂时没有收入。','work');L.flags.unemp=(L.flags.unemp||0)+1;return;}
   const ev=evOffers(L,c);if(!ev)return _findJob(L,c);ev.offer=1;queue(L,ev);};
 // ---------- promotion ----------
@@ -2187,7 +2187,7 @@ career=function(L,c){_career(L,c);const yy=yearOf(L);
   if(nx<lad.length&&J.ly>=ry&&!(J.noUp>y)){
     if(!certOk(L,car,nx)){if(!J.hint){J.hint=1;log(L,`想升${lad[nx]}，得先通过${car.cert.n}。`,'work');}}
     else if(!pubOk(L,car,nx)){if(J.hint!==2){J.hint=2;log(L,`评${lad[nx]}需要 ${car.pub[nx]} 篇论文，你现在有 ${L.pubs||0} 篇。`,'work');}}
-    else{const top=lad.length-1-nx;const p=clamp((.26+(L.st.know-50)*.005+(L.focus==='work'?.15:0)+(L.flags.career||0)*.03+(hasT(L,'social')?.05:0)+(hasT(L,'talk')?.05:0)-(L.flags.record?.15:0))*Math.pow(.7,J.lvl)*(top===0?.3:top===1?.6:1),.02,.8);
+    else{const top=lad.length-1-nx;const p=clamp((.26+(L.st.know-50)*.005+(L.focus==='work'?.15:0)+(L.flags.career||0)*.03+(hasT(L,'social')?.05:0)+(hasT(L,'talk')?.05:0)+L.zf*.04-(L.flags.record?.15:0))*Math.pow(.7,J.lvl)*(top===0?.3:top===1?.6:1),.02,.8);
       if(nx<=2){if(rnd()<p+.15)promoteJob(L,0,1);}
       else if(rnd()<.6){queue(L,guard(evPromo(L,c,car,p)));return;}
       else if(car.upout&&J.ly>=ry+3&&J.lvl<=2&&rnd()<.5){queue(L,guard(evUpOut(L,c)));return;}}}
@@ -2423,7 +2423,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.1',APP_DATE='2026-10-19';
+const APP_VER='3.1.1',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -2556,7 +2556,7 @@ function showRegister(){
     <div>出生地</div><div>${esc(c.n)}${L.rural?' · 乡村':' · 城镇'}</div>
     <div>出生年份</div><div class="num">${L.by} 年 <span class="muted small">（${WORLDS.find(w=>w.v===L.world).n}）</span></div>
     <div>性别</div><div>${L.sex==='M'?'男':'女'}</div>
-    <div>家庭经济</div><div>当地第 <span class="num">${Math.round(L.fpct*100)}</span> 百分位</div>
+    <div>家庭经济</div><div>当地第 <span class="num">${Math.round(L.fpct*100)}</span> 百分位<br><span class="xs muted">${L.fpct<.2?'起点很低：上学、找工作、看病都会更难，寿命也会短一些':L.fpct<.4?'家里不宽裕，很多机会要靠自己争取':L.fpct<.6?'普通人家':L.fpct<.8?'家境不错，读书和找工作都有家里托底':'家境优渥：更容易读好学校、找到好工作，家里还会给钱'}</span></div>
     <div>出生时预期寿命</div><div><span class="num">${L.e0.toFixed(1)}</span> 岁</div>
     <div>5 岁前夭折概率</div><div class="num">${(c.u5/10*(L.sex==='M'?1.08:.92)).toFixed(1)}%</div>
     <div>当地人均收入</div><div>${fmtMoney(c.g)} / 年</div>
