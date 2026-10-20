@@ -341,9 +341,26 @@ body:has(.dialog) main{padding-bottom:150px}
 .crow{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 2.4em;gap:8px;align-items:center}
 .crow>div{display:grid}.crow input{width:100%}
 .cheat .xcard{grid-template-rows:auto auto}
+/* 首页：出生和模式选择放在最上面 */
+.startcard{margin-block:18px 8px;padding:18px 16px;background:var(--sheet);border:1.5px solid var(--red);border-radius:12px;display:grid;gap:12px;box-shadow:0 2px 14px rgba(0,0,0,.05)}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.modes .mode{display:grid;gap:4px;align-content:start;text-align:left;padding:10px 12px;border:1px solid var(--rule);border-radius:var(--r);background:var(--paper);color:var(--ink);font:inherit;cursor:pointer}
+.modes .mode b{font-size:15px}
+.modes .mode span{font-size:12px;color:var(--mute);line-height:1.4}
+.modes .mode[aria-pressed="true"]{border-color:var(--red);background:var(--red-soft);box-shadow:0 0 0 1px var(--red) inset}
+.modes .mode[aria-pressed="true"] b{color:var(--red)}
+@media (max-width:480px){.modes{grid-template-columns:1fr}.modes .mode{grid-template-columns:auto 1fr;align-items:baseline;gap:10px}}
+.startcard .row{margin:0}
+.bornrow .btn.big{flex:1;min-width:10em;font-size:24px}
+.startcard .warnline{margin:0;font-size:12px}
+details.morecfg{margin-block:8px;border-top:1px solid var(--rule);padding-top:8px}
+details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:6px 0}
+.mast .ver{font-size:11px;color:var(--mute);margin-left:6px;font-family:var(--f-num);align-self:center}
+.verline{text-align:center;margin-top:24px}
+.hero h1{font-size:clamp(26px,7vw,44px)}.hero2 .counters{margin-bottom:12px}
 </style>
 <div class="wrap">
-  <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button>
+  <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
     <nav class="nav" id="nav"><button data-go="home">首页</button><button data-go="hall">追思馆</button><button data-go="stories">大家的人生</button><button data-go="stats">各国统计</button><button data-go="records">前世记录</button><button id="themeBtn">明暗：跟随系统</button></nav></header>
   <main id="view"></main>
 </div>
@@ -2293,33 +2310,38 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
+const APP_VER='3.0',APP_DATE='2026-10-19';
+const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
   const past=store.get(LIVES,[]);
   return`<div class="page">
   <section class="hero"><p class="lbl">此 刻</p><h1>每秒约有 <em>4</em> 个婴儿出生。<br>下一个是你。</h1>
-   <div class="counters"><div><b class="num c1" id="cBirth">0</b><span>你打开这一页后出生的婴儿</span></div><div><b class="num" id="cDeath">0</b><span>同一段时间里离世的人</span></div></div>
-   <p class="lede">出生在哪个国家、哪一年、哪种家庭，由真实的出生统计抽签决定，就像每个人当初一样。之后每一年，你决定把精力放在哪里，在升学、工作、恋爱、婚姻、生育、理财和保险的岔路口做选择。选择会改变人生，但很难完全跳出出生地的统计。</p></section>
-  <section><div class="h2">如果你是此刻出生的婴儿<button class="linkbtn" data-go="stats">查看全部 ${C.length} 个国家/地区</button></div>
-   <div class="probs">${top.map(t=>`<div class="prob"><span>${esc(t.n)}</span>${bar(t.p,mx)}<span class="num small">${(t.p*100).toFixed(1)}%</span></div>`).join('')}</div>
-   <p class="small muted">按 2025 年各国出生人数。前八个国家加起来约占 ${(top.reduce((s,t)=>s+t.p,0)*100).toFixed(0)}%。</p></section>
+</section>
   ${resumeCard()}
-  <section class="setup">
+  <section class="startcard">
+   <div class="modes" id="modeCards">${[['normal','随机出生','按真实的出生统计抽签，和现实一样'],['daily','今日人生','今天每个人抽到的都是同一个出生'],['cheat','作弊模式','自己选出生地、家境、天赋和隐藏属性']].map(([v,n,d])=>`<button class="mode" data-mode="${v}" aria-pressed="${curMode()===v}"><b>${n}</b><span>${d}</span></button>`).join('')}</div>
+   <div id="worldBox" ${curMode()==='cheat'?'hidden':''}>
    <div class="row"><span class="lbl">出生在哪个世界</span><div class="seg" id="sWorld">${seg(WORLDS,pref.world)}</div><span class="hint" id="worldHint">${WORLDS.find(w=>w.v===pref.world).d}</span></div>
    <div class="row" id="byRow" ${pref.world==='past'||pref.world==='future'?'':'hidden'}><span class="lbl">出生年份（选填）</span><input id="sBy" type="number" inputmode="numeric" placeholder="留空随机" value="${esc(pref.by)}" style="max-width:10em"><span class="hint" id="byHint"></span></div>
+   </div>
+   <div class="actions bornrow"><button class="btn big" id="bornBtn">出 生</button><button class="btn ghost" id="homeMusic" aria-pressed="${Music.on}">${Music.on?'♪ 音乐：开':'♪ 音乐：关'}</button></div>
+   <div class="agegate" id="ageGate" hidden><p><b>开始之前</b>：这个模拟会按真实统计呈现死亡、疾病、暴力、成瘾和自杀，也包含成年人之间的亲密情节。请确认你已年满 21 岁。</p><div class="actions"><button class="pri" id="ageOk">我已年满 21 岁</button><button id="ageNo">我还没满 21 岁</button></div></div>
+   <p class="warnline">夭折、疾病、贫困、战争、饥荒和丧亲会按真实统计发生，但不描写场面。也包含成年人之间的亲密情节（点到为止）。适合 21 岁以上。</p>
+  </section>
+  <section class="hero2">
+<div class="counters"><div><b class="num c1" id="cBirth">0</b><span>你打开这一页后出生的婴儿</span></div><div><b class="num" id="cDeath">0</b><span>同一段时间里离世的人</span></div></div><p class="lede">出生在哪个国家、哪一年、哪种家庭，由真实的出生统计抽签决定，就像每个人当初一样。之后每一年，你决定把精力放在哪里，在升学、工作、恋爱、婚姻、生育、理财和保险的岔路口做选择。选择会改变人生，但很难完全跳出出生地的统计。</p></section>
+  <details class="setup morecfg"><summary>更多设置</summary>
    <div class="row"><span class="lbl">出生地怎么抽</span><div class="seg" id="sMode">${seg([{v:'births',n:'按那一年的出生人数'},{v:'pop',n:'按那一年的人口'}],pref.mode)}</div><span class="hint">按出生人数时，婴儿多的国家更容易抽中；按人口时，按各国人口比例。人生都从 0 岁开始。</span></div>
    <div class="row"><span class="lbl">一段人生的长度</span><div class="seg" id="sLen">${seg(LENGTHS,pref.len)}</div><span class="hint">这是活到当地平均寿命大约要花的时间。选 1 小时的话，一年大约 50 秒。过程中可以暂停、加速，或直接快转到下一个抉择。</span></div>
    <div class="row"><span class="lbl">你实际出生的国家/地区（选填）</span><select id="sReal"><option value="">不比较</option>${[...C].sort((a,b)=>a.n.localeCompare(b.n,'zh')).map(c=>`<option value="${c.k}" ${pref.real===c.k?'selected':''}>${esc(c.n)}</option>`).join('')}</select><span class="hint">选了之后，结束时会把这一生和你自己的出生地并排比较。只保存在这台设备上。</span></div>
-   <label class="check"><input type="checkbox" id="sDaily" ${pref.daily?'checked':''}> 今日人生：今天每个人抽到的都是同一个出生（同一个国家、年份、家庭和名字），之后怎么活看你自己</label>
-   <label class="check"><input type="checkbox" id="sCheat" ${pref.cheat?'checked':''}> 作弊模式：自己选出生地、年份、性别、家境、天赋和隐藏属性</label>
-   <label class="check"><input type="checkbox" id="sTeach" ${pref.teach?'checked':''}> 教学模式：减少成瘾、家暴、童婚等沉重情节，并关闭发布到追思馆和分享</label>
-   <p class="warnline">夭折、疾病、贫困、战争、饥荒和丧亲会按真实统计发生，但不描写场面。也包含成年人之间的亲密情节（点到为止）。适合 21 岁以上。</p>
-   <div class="agegate" id="ageGate" hidden><p><b>开始之前</b>：这个模拟会按真实统计呈现死亡、疾病、暴力、成瘾和自杀，也包含成年人之间的亲密情节。请确认你已年满 21 岁。</p><div class="actions"><button class="pri" id="ageOk">我已年满 21 岁</button><button id="ageNo">我还没满 21 岁</button></div></div>
    <div class="row"><span class="lbl">金额显示为</span><div class="seg" id="sCur">${seg(Object.entries(CURRENCIES).map(([v,x])=>({v,n:x.n})),pref.cur)}</div><span class="hint">收入按当地的购买力换算成你选的货币，是“过日子的体感”，不是汇率换算。</span></div>
-   <div class="actions"><button class="btn big" id="bornBtn">出生</button><button class="btn ghost" id="homeMusic" aria-pressed="${Music.on}">${Music.on?'♪ 音乐：开':'♪ 音乐：关'}</button></div>
+   <label class="check"><input type="checkbox" id="sTeach" ${pref.teach?'checked':''}> 教学模式：减少成瘾、家暴、童婚等沉重情节，并关闭发布到追思馆和分享</label>
    <p class="xs muted">背景音乐是用浏览器合成的长笛，演奏几首公版古典曲目，会随人生阶段更换。</p>
-   <p class="small muted">设置不用改，直接出生也可以。</p>
-  </section>
+  </details>
+  <section><div class="h2">如果你是此刻出生的婴儿<button class="linkbtn" data-go="stats">查看全部 ${C.length} 个国家/地区</button></div>
+   <div class="probs">${top.map(t=>`<div class="prob"><span>${esc(t.n)}</span>${bar(t.p,mx)}<span class="num small">${(t.p*100).toFixed(1)}%</span></div>`).join('')}</div>
+   <p class="small muted">按 2025 年各国出生人数。前八个国家加起来约占 ${(top.reduce((s,t)=>s+t.p,0)*100).toFixed(0)}%。</p></section>
   <section><div class="h2">追思馆<button class="linkbtn" data-go="hall">进去看看</button></div>
    <p class="small muted">走到最后的人生可以安放在这里。任何人都能为一段人生点一支蜡烛，留下一句话。</p>
    <div class="cards">${S.mem.length?S.mem.slice(0,3).map(memCard).join(''):`<p class="small muted">${esc(S.err||(S.ready?'还没有人安放人生。第一位会是你吗？':'正在打开追思馆…'))}</p>`}</div>
@@ -2336,6 +2358,7 @@ function pHome(){
    <p>以下是估算：高等教育入学率由受教育年数和收入推算；童婚比例对主要国家采用 UNICEF 的近年数字，其余由女性初婚年龄推算，越早的年代越高；缺少的生活满意度由收入推算；1989 年以前的战争、饥荒和大流行按史料中的大致死亡规模手动设定。</p>
    <p>死亡：每个国家、性别、年份都用 5 岁以下死亡率确定婴幼儿段，5 岁以后用 Gompertz–Makeham 死亡力 μ(x)=A+B·e^(0.095x)，二分法求 B 使整张表的出生时预期寿命与数据一致。你个人的死亡率再乘上风险乘数（健康偏离同龄期望、吸烟、饮酒、药物、慢性病、收入位置）。死因按年龄、年代、收入水平和当地疾病负担抽取。收入按基尼系数换算成对数正态分布，金额以购买力平价美元计，显示为按中国物价换算的人民币体感金额。</p>
   </details>
+  <p class="xs muted verline">此生生命表 v${APP_VER} · 更新于 ${APP_DATE}</p>
   <details class="about"><summary>更新说明</summary><p>10 月 16 日：每一年都会按年龄、年代、国家、城乡和家境发生多件事；加入科技普及的时间差、各国历史节点、国家与年代特有的抉择（上山下乡、恢复高考、下岗、计划生育、越战征兵、种族隔离、两德分裂等）、更多近年战争与经济危机；可以中途离开、以后继续；增加“下一年”按钮、查看更早的记录、和实际出生地对比。</p><p>此前：童年与青春期事件、兵役、失业、性别工资差距、出国务工、犯罪与入狱、自然灾害、抑郁与自杀、婚育与养老的现实处境；195 个国家/地区 1900–2100 年数据；追思馆与人生分享。</p></details>
   <details class="about"><summary>使用须知与隐私</summary><p>这是一个依据公开统计做的人生模拟，结果是随机的，不代表任何真实的人，也不是对任何国家或群体的评价。内容包含死亡、疾病、战争、成瘾、暴力和自杀等沉重情节，适合 21 岁以上；如果读到这些让你难受，请随时停下来，现实中需要帮助时请联系当地的求助热线。</p><p>${S.local?'你的人生记录、追思馆、分享和设置都只保存在这个浏览器里，不会上传到任何地方；清除浏览器数据就会消失，可以用“前世记录”里的导出代码备份。':'人生记录和设置只保存在这个浏览器里。安放到追思馆、分享人生和留言会保存在这个页面的共享数据里，有权限打开这个页面的人都能看到，但不会显示你的名字。'}</p></details>
   <div class="foot"><span>这是一个人生模拟，所有人物都是虚构的。</span>
@@ -2351,8 +2374,7 @@ function wHome(){
   onSeg($('#sLen'),v=>{pref.len=+v;savePref();$('#sLen').innerHTML=seg(LENGTHS,v);});
   $('#sReal').onchange=e=>{pref.real=e.target.value;savePref();};
   $('#sTeach').onchange=e=>{pref.teach=e.target.checked;savePref();};
-  $('#sCheat').onchange=e=>{pref.cheat=e.target.checked;savePref();};
-  $('#sDaily').onchange=e=>{pref.daily=e.target.checked;savePref();};
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{const m=b.dataset.mode;pref.daily=m==='daily';pref.cheat=m==='cheat';savePref();document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.mode===m)));$('#worldBox').hidden=m==='cheat';});
   onSeg($('#sCur'),v=>{pref.cur=v;savePref();setCurrency(v);route('home',null,true);});
   const byHint=()=>{const h=$('#byHint');if(!h)return;const v=+$('#sBy').value;const ok=pref.world==='past'?v>=1900&&v<=2025:v>=2027&&v<=2100;h.textContent=!$('#sBy').value?(pref.world==='past'?'1900–2025 年之间随机':'2027–2100 年之间随机'):ok?'':(pref.world==='past'?'请填 1900 到 2025 之间的年份':'请填 2027 到 2100 之间的年份');};
   $('#sBy').oninput=()=>{pref.by=$('#sBy').value;savePref();byHint();};byHint();
@@ -2929,6 +2951,7 @@ const Music={on:false,ctx:null,out:null,rev:null,iv:null,cur:null,
   btns(){const b=$('#musicBtn');if(b)b.setAttribute('aria-pressed',String(this.on));const h=$('#homeMusic');if(h){h.setAttribute('aria-pressed',String(this.on));h.textContent=this.on?'♪ 音乐：开':'♪ 音乐：关';}},
   toggle(){if(this.on){this.stop();pref.music=false;}else{this.start();pref.music=true;}savePref();}};
 
+{const vt=$('#verTag');if(vt)vt.textContent='v'+APP_VER;}
 
 // ================= 修仙人生（隐藏模式；原创文本，通用修仙题材机制） =================
 const XMETA='xian_meta_v1';
