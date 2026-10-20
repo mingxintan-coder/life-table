@@ -361,6 +361,7 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .feed{position:relative;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:auto}
 .feed .fdet.top{align-self:center;font-size:12px;margin:0 0 4px}
 .feed .fnew{position:sticky;bottom:6px;align-self:center;border:0;border-radius:999px;background:var(--red);color:var(--on-red);font-size:12px;padding:4px 12px;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer}
+.feed .fl.pick{font-size:14px;color:var(--ink)}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -2313,7 +2314,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.0.1',APP_DATE='2026-10-19';
+const APP_VER='3.0.2',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -2537,11 +2538,21 @@ function previewFx(L,e){if(e._fx)return e._fx;const c0=cNow(L),snap=cap(L),N=14,
   e._fx=out;return out;}
 // the dialog: one box, story lines appear one by one, newest at the bottom
 function renderFeed(L){const F=$('#gFeed');if(!F)return;const shown=L.log.slice(0,G.shown);const det=!!G.feedAll;
-  const pick=[];for(let i=shown.length-1;i>=0&&pick.length<300;i--){const e=shown[i];if(det||isKey(e))pick.unshift(e);}
+  const pick=det?shown.slice(-300):perYear(shown,isKey,L.age).slice(-300);
   feedPaint(F,pick,isKey,det,()=>{G.feedAll=!G.feedAll;F._k=null;renderFeed(L);},`${esc(L.name)}出生了。`);}
+// key events, plus at least one line for every year of life (the most telling one if nothing big happened)
+const PRI={love:1,family:2,work:3,health:4,money:5,edu:6,world:7,era:8,act:9,yr:10,n:11,note:12};
+function perYear(log,keyFn,curAge,fill=true){const out=[];let i=0;const ages=[];
+  const by=new Map();for(const e of log){if(!by.has(e.a)){by.set(e.a,[]);ages.push(e.a);}by.get(e.a).push(e);}
+  const last=ages.length?ages[ages.length-1]:0;const all=fill?Array.from({length:last+1},(_,a)=>a):ages;
+  for(const a of all){const es=by.get(a)||[];const ks=es.filter(keyFn);if(ks.length){out.push(...ks);continue;}
+    const cand=es.filter(e=>e.k!=='choice').sort((x,y)=>(PRI[x.k]||13)-(PRI[y.k]||13));
+    if(cand.length)out.push(Object.assign(Object.create(cand[0]),{pick:1}));
+    else if(fill&&a<last)out.push({a,k:'n',t:'这一年平平淡淡地过去了。',pick:1});}
+  return out;}
 // shared by both games: keeps your scroll position if you scrolled up; sticks to the newest line otherwise
 function feedPaint(F,pick,keyFn,det,toggle,empty){
-  let h='',lastA=null;for(const e of pick){if(e.a!==lastA){h+=`<div class="fage">${e.a} 岁</div>`;lastA=e.a;}h+=`<p class="fl k-${e.k}${keyFn(e)?' key':''}">${esc(e.t)}</p>`;}
+  let h='',lastA=null;for(const e of pick){if(e.a!==lastA){h+=`<div class="fage">${e.a} 岁</div>`;lastA=e.a;}h+=`<p class="fl k-${e.k}${keyFn(e)?' key':''}${e.pick?' pick':''}">${esc(e.t)}</p>`;}
   if(!pick.length)h=`<p class="fl muted">${empty}</p>`;
   const key=pick.length+'|'+(pick.length?pick[pick.length-1].t:'')+det;if(F._k===key)return;
   const atBottom=F._k==null||F.scrollHeight-F.scrollTop-F.clientHeight<60,prevTop=F.scrollTop;F._k=key;
@@ -3294,7 +3305,7 @@ function xRender(){
   $('#xPlay').textContent=XG.playing?'暂停':'继续';$('#xAuto').textContent=XG.auto?'自动抉择：开':'自动抉择：关';
   // dialog feed
   const xk=e=>!(e.k==='yr'||e.k==='n'||(e.k==='work'&&/突破到了炼气|手艺|你开始学/.test(e.t)&&!/突破到了炼气九层/.test(e.t))||(e.k==='edu'&&/修到了第(?!九)/.test(e.t))||(e.k==='family'&&/长大了一圈/.test(e.t))||(e.k==='money'&&/^卖了/.test(e.t)));
-  const pk=[];for(let i=X.log.length-1;i>=0&&pk.length<300;i--){const e=X.log[i];if(XG.all||xk(e))pk.unshift(e);}
+  const pk=XG.all?X.log.slice(-300):perYear(X.log,xk,X.age,false).slice(-300);
   const FD=$('#xFeed');feedPaint(FD,pk,xk,!!XG.all,()=>{XG.all=!XG.all;FD._k=null;xRender();},'');
   let ev='';if(X.queue.length){const e=X.queue[0];ev=`<div class="event"><span class="tag">抉择</span><h3>${esc(e.title)}</h3><p>${esc(e.text)}</p><div class="opts">${e.opts.map((o,i)=>`<button class="opt" data-xi="${i}"><b>${esc(o.t)}</b>${o.d?`<span>${esc(o.d)}</span>`:''}</button>`).join('')}</div></div>`;}
   const XE=$('#xEvent');if(XE._k!==ev){XE.innerHTML=ev;XE._k=ev;const D=$('#xDialog');D.classList.toggle('hasev',!!ev);
