@@ -362,6 +362,8 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .feed .fdet.top{align-self:center;font-size:12px;margin:0 0 4px}
 .feed .fnew{position:sticky;bottom:6px;align-self:center;border:0;border-radius:999px;background:var(--red);color:var(--on-red);font-size:12px;padding:4px 12px;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer}
 .feed .fl.pick{font-size:14px;color:var(--ink)}
+.ministats .ms.xr b{color:var(--accent)}
+.ministats .ms.xr b{color:var(--accent)}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -630,7 +632,7 @@ function step(L){
   if(rnd()<qPers(L,c)){die(L,causeOf(L,c));return;}
   if(histDeath(L))return;
   if(suicideCheck(L,c))return;
-  if(L.age>=110){die(L,'衰老');return;}
+  if(L.age>=110&&!(L.xian&&L.xian.realm>=1)){die(L,'衰老');return;}
   L.age++;
   c=cNow(L);
   if(L.focus==='grow'&&L.age>=6)L.focus='study';
@@ -869,7 +871,7 @@ function love(L,c){
   let dr=(P.compat-50)*.06+(L.st.social-50)*.04+(L.focus==='family'?5:0)-(L.focus==='work'?2.5:0)+randn()*5;
   if(P.st!=='dating')dr-=1;if(L.money.debt>c.g)dr-=2;if(L.alc>=2||L.gamble||L.drugs)dr-=4;
   P.rel=clamp(P.rel+dr,0,100);
-  if(rnd()<table(L.cur,P.sex,sYear(L)).q[Math.min(110,P.age)]){
+  if(rnd()<table(L.cur,P.sex,sYear(L)).q[Math.min(110,P.xian?Math.round(P.pa||P.age):P.age)]){
     P.alive=false;log(L,`${P.st==='dating'?'恋人':'伴侣'}${P.name}离开了人世，享年${P.age}岁。`,'death');
     L.st.happy=clamp(L.st.happy-22,0,100);L.partner=null;L.widowed++;L.flags.solo=a+2;L.flags.dv=0;return;
   }
@@ -1300,7 +1302,7 @@ function life2(L,c){
   // workplace injury
   if(L.job&&!L.job.hi&&rnd()<.01*(c.g<20000?1.5:.6)){const sev=rnd()<.3;bump(L,'health',sev?-25:-10);if(sev){L.flags.disabled=1;}const comp=L.formal?c.g*(sev?2:.3):0;L.money.liq+=comp;log(L,`干活时出了事故，${sev?'落下了终身残疾':'受了伤，休养了好几个月'}。${comp?'拿到工伤赔偿 '+fmtMoney(comp)+'。':'老板没有赔一分钱。'}`,'health');}
   // HIV
-  if(a<=50&&rnd()<c.hiv/100*.06){const art=y>=2005||(c.g>25000&&y>=1997);L.chronic+=art?.5:3;bump(L,'happy',-10);log(L,art?'检测出感染了艾滋病病毒。开始每天服药，病毒被压了下去。':'你感染了艾滋病病毒。那时还没有能用的药。','health');}
+  if(a<=50&&!(L.xian&&L.xian.realm>=1)&&rnd()<c.hiv/100*.06){const art=y>=2005||(c.g>25000&&y>=1997);L.chronic+=art?.5:3;bump(L,'happy',-10);log(L,art?'检测出感染了艾滋病病毒。开始每天服药，病毒被压了下去。':'你感染了艾滋病病毒。那时还没有能用的药。','health');}
   // dementia
   if(a>=70&&!L.flags.dem&&rnd()<.004*Math.pow(1.17,a-70)){L.flags.dem=1;bump(L,'know',-20);L.chronic+=1;queue(L,{title:'越来越记不住事',text:'医生说是阿尔茨海默病。以后会慢慢认不出熟悉的人。',opts:[
     {t:'住进养老院',d:`每年约 ${fmtMoney(c.g*.5)}`,w:c.g>20000?1.5:.3,f:L=>{L.flags.care=2;log(L,'住进了养老院。','family');}},
@@ -2235,6 +2237,113 @@ career=function(L,c){_careerC(L,c);const ch=L.cheat;if(!ch||!L.alive)return;
   if(L.age>=16&&ch.luck>55&&rnd()<(ch.luck-50)/450){const v=c.g*(.1+rnd()*(ch.luck>85?2:.8));L.money.liq+=v;log(L,pick(['你买的彩票中了个小奖','一个多年不联系的远亲给你留了一笔钱','你在旧衣服口袋里翻出一张早忘了的存单','路边捡到的钱包，失主硬塞给你一笔谢礼'])+`，大约 ${fmtMoney(v)}。`,'money');}
   if(L.age>=16&&ch.luck<45&&rnd()<(50-ch.luck)/450){const v=Math.min(L.money.liq,c.g*(.1+rnd()*.5));L.money.liq-=v;log(L,pick(['你被人骗了一笔钱','家里遭了贼','一场意外让你赔了一大笔'])+`，损失约 ${fmtMoney(v)}。`,'money');}
 };
+
+// ================= 现实中的修行：奇遇之后，修仙融入同一段人生 =================
+// L.xian = {root, rn, realm, layer, exp, pa(生理年龄), mode:'city'|'mountain', sect, gong, side, exposed, ling}
+const XR=['凡人','炼气','筑基','金丹','元婴','化神','炼虚','合体','大乘','渡劫'];
+const XSLOW=[1,.7,.35,.18,.09,.045,.025,.014,.008,.005];
+const XROOTS=[['五灵根',.35],['四灵根',.5],['三灵根',.8],['双灵根',1.3],['天灵根',2.1],['异灵根·雷',2.5]];
+const XGONG=[['吐纳法',1],['青木长生功',1.3],['玄水真经',1.7],['紫霄雷典',2.3]];
+const XSIDE={tcm:['开中医诊所',.6,'给人号脉、扎针，一摸就知道病在哪儿'],fengshui:['做风水先生',.5,'看房子、看坟地，你是真的看得见“气”'],coach:['当武术教练',.35,'教一群孩子扎马步'],guard:['给富豪当保镖',.9,'没人知道你一个人能打二十个'],stream:['开直播展示“功夫”',.7,'流量很大，也很危险'],antique:['在古玩市场鉴宝',.8,'真东西会发光，只有你看得见']};
+const xrName=X=>X.realm===1?`炼气${'一二三四五六七八九'[X.layer-1]}层`:XR[X.realm]+(X.realm?'期':'');
+const xNeed=X=>X.realm===0?10:X.realm===1?Math.round(12*Math.pow(1.2,X.layer-1)):Math.round(300*Math.pow(4.5,X.realm-1));
+let LINGQI=1; // 灵气复苏之后变大
+function lingqi(L){return yearOf(L)>=2060?1.8:1;}
+function xLog(L,t,k){log(L,t,k||'era');}
+function evXRoot(L){return{title:'测灵根',text:'那人把你带进山里一间旧道观，取出一块灰白的石头：“手放上去。”',opts:[{t:'把手放上去',w:1,f:L=>{
+  const u=rnd()+(hasT(L,'lucky')?.15:0)+((L.cheat&&L.cheat.luck||50)-50)/300;const r=u<.25?0:u<.5?1:u<.75?2:u<.92?3:u<.985?4:5;
+  L.xian={root:XROOTS[r][0],rm:XROOTS[r][1],realm:0,layer:1,exp:0,pa:L.age,mode:'city',sect:null,gong:0,side:null,exposed:0,since:L.age};
+  xLog(L,`测灵石亮了——${XROOTS[r][0]}。从今天起，你是一个修行的人了。`);queue(L,evXPath(L));}}]};}
+function evXPath(L){return{title:'怎么修',text:'老道说：“修行不一定要出家。你可以留在山里，也可以回到城里，白天上班，夜里打坐。”',opts:[
+  {t:'留在山里专心修行',d:'修得快，要放下工作和家里的事好几年',w:1,f:L=>{L.xian.mode='mountain';L.xian.sect='青云观';L.xian.mtill=L.age+5;if(L.job&&!L.job.own){log(L,'你辞了工作，跟家里说要出去闯几年。','work');L.job=null;}L.flags.homemakerX=1;xLog(L,'你在青云观住了下来。山里没有信号，只有钟声。');}},
+  {t:'回城里，边过日子边修行',d:'修得慢，生活照旧',w:1.4,f:L=>{L.xian.mode='city';L.xian.sect='青云观';xLog(L,'你回到了城里。白天的你和以前一样，夜里的你在阳台上吐纳。');}},
+  {t:'拜师，但不让任何人知道',d:'和回城一样，更难被人发现',w:.8,f:L=>{L.xian.mode='city';L.xian.sect='青云观';L.xian.secret=1;xLog(L,'你拜了老道为师。这件事，你谁也没告诉。');}}]};}
+function evXBreak(L,c){const X=L.xian,nm=XR[X.realm+1],p=clamp(.6+(L.st.know-50)*.004+(L.st.mind-60)*.004-X.realm*.05+(hasT(L,'lucky')?.08:0),.1,.92),cost=c.g*.5*X.realm;
+  return{title:`冲击${nm}`,text:`你的修为到了${xrName(X)}的顶点。成功的把握大约 ${Math.round(p*100)}%。${X.realm>=2?'闭关要很久，家里和单位那边得先找个理由。':''}`,opts:[
+   {t:'闭关冲关',d:`把握 ${Math.round(p*100)}%`,w:1.2,f:L=>xBreak(L,p)},
+   {t:`花 ${fmtMoney(cost)} 买天材地宝再冲`,d:`把握 ${Math.round(Math.min(.97,p+.15)*100)}%`,dis:L.money.liq<cost,w:.8,f:L=>{L.money.liq-=cost;xBreak(L,Math.min(.97,p+.15));}},
+   {t:'再稳一稳',w:.4,f:L=>{L.xian.wait=L.age+2;}}]};}
+function xBreak(L,p){const X=L.xian;
+  if(rnd()<p){X.exp=0;X.realm++;X.layer=1;L.st.health=clamp(Math.max(L.st.health,90),1,100);bump(L,'happy',8);
+    const msg={2:`你筑基成功了。从此不太需要吃饭，也很少生病；镜子里的你，好像停在了 ${Math.round(X.pa)} 岁的样子。`,3:'金丹已成。你能感觉到体内多了一颗温热的东西，像一个小小的太阳。',4:'元婴出窍的那一刻，你第一次从上方看见了自己的身体。',5:'化神。你看这个世界的方式，和以前再也不一样了。'}[X.realm]||`你突破到了${XR[X.realm]}期。`;
+    xLog(L,msg);
+    if(X.realm===2){const old=[];if(L.chronic>0){old.push('多年的旧病');L.chronic=0;}if(L.flags.disabled){old.push('残疾');L.flags.disabled=0;}if(L.flags.dep){old.push('抑郁');L.flags.dep=0;}if(L.flags.dem){old.push('健忘');L.flags.dem=0;}if(L.smoker){L.smoker=false;}if(old.length)xLog(L,`筑基时灵气冲刷全身，${old.join('、')}都好了。`,'health');}
+    if(X.realm>=3&&rnd()<.5)queue(L,evXHeart(L));return;}
+  X.exp*=.6;L.st.health=clamp(L.st.health-20,1,100);
+  if(X.realm>=2&&rnd()<.06){die(L,'冲关失败，走火入魔');return;}
+  log(L,'冲关失败，经脉受了伤。','health');}
+function evXHeart(L){const lost=[L.father.alive?null:'父亲',L.mother.alive?null:'母亲',L.widowed?'走了的伴侣':null].filter(Boolean);return{title:'心魔',text:`闭关的时候，心里的事一件件浮上来${lost.length?'：'+lost.join('、')+'，那些没说出口的话……':'：那些年做过的选择，错过的人……'}`,opts:[
+  {t:'直面它',w:1,f:L=>{if(rnd()<.45+(L.st.mind-50)*.01){bump(L,'mind',10);xLog(L,'你斩断了心魔。');}else{bump(L,'mind',-15);bump(L,'happy',-8);log(L,'心魔缠身，你很久都缓不过来。','health');}}},
+  {t:'压下去',w:1,f:L=>{bump(L,'mind',-5);}}]};}
+// ---------- events of a cultivator living in the real world ----------
+const XEVS=[
+ {c:L=>L.xian.realm>=1&&!L.xian.side&&L.age>=18,w:1.2,b:(L,c)=>{const ks=Object.keys(XSIDE).sort(()=>rnd()-.5).slice(0,3);return{title:'一门副业',text:'修行要花钱：药材、玉石、清静的地方。你身上的本事，能换钱。',opts:[...ks.map(k=>({t:XSIDE[k][0],d:XSIDE[k][2],w:1,f:L=>{L.xian.side=k;xLog(L,`你开始${XSIDE[k][0].replace(/^开|^做|^当|^给|^在/,'')}。`,'work');}})),{t:'不用这身本事挣钱',w:.5,f:L=>{L.xian.side='none';}}]};}},
+ {c:L=>L.xian.realm>=1&&L.money.liq>c0(L).g*.3,w:1,b:(L,c)=>({title:'黑市灵材',text:`有人在地下市场卖“三百年野山参”和一块据说是陨石的玉，要价 ${fmtMoney(c.g*.3)}。`,opts:[{t:'买',w:1,f:L=>{L.money.liq-=c.g*.3;if(rnd()<.5){L.xian.exp+=xNeed(L.xian)*.4;xLog(L,'是真东西。你炼化了它，修为大进。');}else log(L,'是假货。你被骗了。','money');}},{t:'不买',w:1,f:L=>{}}]})},
+ {c:L=>L.xian.realm>=1&&L.xian.pa<L.age-8,w:1.2,b:(L,c)=>({title:'你怎么不老',text:`同学聚会上，大家都老了，只有你还像 ${Math.round(L.xian.pa)} 岁。有人半开玩笑地问你是不是打了什么针。`,opts:[{t:'说是保养得好',w:1.2,f:L=>{L.xian.exposed+=.5;}},{t:'以后少见老朋友',w:.8,f:L=>{bump(L,'social',-8);}},{t:'换一座城市生活',d:'人际重新开始',w:.5,f:L=>{bump(L,'social',-15);L.xian.exposed=Math.max(0,L.xian.exposed-2);xLog(L,'你搬去了一座没有人认识你的城市。','world');}}]})},
+ {c:L=>L.xian.realm>=1&&L.partner&&L.partner.alive&&!L.partner.xian,w:.8,b:(L,c)=>{const P=L.partner;return{title:'要不要告诉TA',text:`${P.name}越来越老了，而你几乎没变。TA开始害怕，问你是不是有事瞒着TA。`,opts:[{t:'告诉TA真相，带TA一起修行',d:'TA不一定有灵根',w:1,f:L=>{if(rnd()<.45){P.xian=1;P.pa=P.age;P.rel=clamp(P.rel+15,0,100);xLog(L,`${P.name}也有灵根。从此你们一起修行，TA老得也慢了。`,'love');}else{P.rel=clamp(P.rel+5,0,100);log(L,`${P.name}没有灵根。TA抱着你哭了很久，说：“那你要好好的。”`,'love');}}},{t:'瞒着',w:1,f:L=>{P.rel=clamp(P.rel-10,0,100);}}]};}},
+ {c:L=>L.xian.realm>=1&&L.xian.exposed>=3&&!L.flags.bureau,w:1.5,b:(L,c)=>{L.flags.bureau=1;return{title:'特殊事务局',text:'一个穿着普通夹克的中年人在你家楼下等你：“我们注意你很久了。别紧张，像你这样的人，不止你一个。”',opts:[{t:'加入他们',d:'有编制，工资高，任务危险',w:1,f:L=>{L.job={t:'特殊事务局',ck:null,lvl:1,yrs:0,z:.6,own:null,hi:true};L.formal=true;xLog(L,'你成了特殊事务局的外勤人员。档案上写的是“某研究所研究员”。','work');}},{t:'拒绝，保证不惹事',w:1,f:L=>{L.xian.exposed=1;xLog(L,'他们留下一个电话号码就走了。你知道，从此有人在看着你。');}},{t:'连夜离开这座城市',w:.4,f:L=>{bump(L,'social',-15);L.xian.exposed=0;if(L.job&&!L.job.own)L.job=null;}}]};}},
+ {c:L=>L.xian.realm>=1&&L.job&&L.job.t==='特殊事务局',w:1,b:(L,c)=>({title:'外勤任务',text:pick(['城郊连续失踪了三个人，现场有一种腥甜的气味。','一座古墓被盗了，盗洞里有烧焦的符纸。','网上一个“大师”在用邪术骗老人的养老钱。']),opts:[{t:'出任务',w:1,f:L=>{const p=.55+L.xian.realm*.1;if(rnd()<p){bump(L,'happy',5);L.job.z+=.05;xLog(L,'任务完成了。新闻里只说是“警方破获一起案件”。','work');}else if(rnd()<.15){die(L,'因公殉职（档案里写的是“意外”）');}else{L.st.health=clamp(L.st.health-25,1,100);log(L,'你受了重伤，躺了好几个月。','health');}}}]})},
+ {c:L=>L.xian.realm>=1,w:.7,b:(L,c)=>({title:'车祸现场',text:'路口一辆车翻了，油在往外漏，里面还有人。周围的人都在拍视频。',opts:[{t:'冲上去，徒手掀开车门',d:'会被拍到',w:1,f:L=>{bump(L,'mind',8);L.xian.exposed+=2;xLog(L,'你把人拖了出来。第二天，一段“路人徒手掀车门”的视频上了热搜。','world');}},{t:'帮忙打电话叫救护车',w:1,f:L=>{}},{t:'用法术，悄悄地',d:`需要${'筑基'}以上`,dis:L.xian.realm<2,w:.8,f:L=>{bump(L,'mind',6);xLog(L,'车门自己弹开了。没有人知道是怎么回事。');}}]})},
+ {c:L=>L.xian.realm>=1&&L.xian.mode==='mountain'&&L.age>=(L.xian.mtill||0),w:3,b:(L,c)=>({title:'下山',text:'在山里住了几年，师父说：“你尘缘未了，下山去吧。”',opts:[{t:'下山，回到城里',w:1,f:L=>{L.xian.mode='city';L.flags.homemakerX=0;xLog(L,'你下山了。城市变了很多，你也是。');}},{t:'再留几年',w:.6,f:L=>{L.xian.mtill=L.age+5;bump(L,'social',-5);}}]})},
+ {c:L=>L.xian.realm>=2&&L.age-L.xian.pa>40&&!L.flags.newid,w:1.5,b:(L,c)=>({title:'身份证上的年龄',text:`身份证上写着你 ${L.age} 岁，可你看起来顶多 ${Math.round(L.xian.pa)}。银行柜员看了你三遍。`,opts:[{t:'托人换一个新身份',d:`约 ${fmtMoney(c.g*.8)}`,w:1,f:L=>{L.money.liq-=c.g*.8;L.flags.newid=L.age;xLog(L,'你有了一个新名字和一个新出生日期。旧的你，“去世”了。','world');}},{t:'隐居，不再见人',w:.6,f:L=>{bump(L,'social',-20);L.flags.newid=L.age;}}]})},
+ {c:L=>L.xian.realm>=1&&L.kids.some(k=>k.alive&&k.age>=6&&!k.xt),w:.6,b:(L,c)=>{const k=L.kids.find(k=>k.alive&&k.age>=6&&!k.xt);return{title:'孩子的灵根',text:`${k.name}六岁了。你可以带TA去测一测灵根。`,opts:[{t:'测',w:1,f:L=>{k.xt=1;if(rnd()<.4){k.xian=1;xLog(L,`${k.name}有灵根。你开始教TA吐纳。`,'family');}else log(L,`${k.name}没有灵根。也好，平平安安过一生。`,'family');}},{t:'让TA做个普通人',w:1,f:L=>{k.xt=1;}}]};}},
+ {c:L=>L.xian.realm>=2&&!L.flags.evil,w:.5,b:(L,c)=>{L.flags.evil=1;return{title:'邪修',text:'城里接连有年轻人莫名虚弱，医院查不出原因。你在他们身上闻到同一种气味——有人在采补。',opts:[{t:'找到他，动手',w:1,f:L=>{const p=.45+L.xian.realm*.12;if(rnd()<p){bump(L,'mind',8);L.xian.exposed+=1;xLog(L,'你在一栋烂尾楼里找到了他。那一夜之后，城里再没有人莫名其妙地病倒。');}else if(rnd()<.25)die(L,'与邪修斗法，身死道消');else{L.st.health=clamp(L.st.health-30,1,100);log(L,'你没打过他，受了很重的伤。','health');}}},{t:'报告特殊事务局',dis:!L.flags.bureau,w:.8,f:L=>{xLog(L,'事务局的人来了。你没有再问后来的事。');}},{t:'不关我的事',w:.5,f:L=>{bump(L,'mind',-6);}}]};}},
+ {c:L=>L.xian.realm>=1&&L.xian.gong<3,w:.5,b:(L,c)=>{const g=L.xian.gong+1;return{title:'功法',text:`师父说你可以学更深的功法了——《${XGONG[g][0]}》。${g>=2?'不过要先替观里办一件事。':''}`,opts:[{t:'学',w:1,f:L=>{if(g>=2&&rnd()<.3){log(L,'办事的时候出了岔子，师父说再等等。','work');return;}L.xian.gong=g;xLog(L,`你学会了《${XGONG[g][0]}》。`,'edu');}},{t:'先把现在的练扎实',w:.5,f:L=>{L.xian.exp+=xNeed(L.xian)*.1;}}]};}}
+];
+const c0=L=>cNow(L);
+function xianTick(L,c){const X=L.xian;if(!X||!L.alive)return;
+  if(X.realm===0&&X.exp===0&&!X.started){X.started=1;}
+  const f=L.focus==='auto'?null:L.focus,cult=f==='cultivate'||X.mode==='mountain';
+  // physiological age
+  X.pa+=XSLOW[X.realm];if(L.partner&&L.partner.xian)L.partner.pa=(L.partner.pa||L.partner.age)+.5;
+  // progress
+  const g=10*X.rm*(1+L.st.know/120)*(cult?2.2:.6)*(X.mode==='mountain'?1.8:1)*XGONG[X.gong][1]*lingqi(L)*Math.pow(1.4,Math.max(0,X.realm-1))*(L.st.mind>60?1.1:L.st.mind<35?.7:1)*(L.age<12?.5:1);
+  X.exp+=g;if(X.realm===0&&X.exp>=10){X.realm=1;X.exp=0;xLog(L,'你第一次感觉到了“气”在身体里流动。你踏入了炼气期。');}
+  while(X.realm===1&&X.layer<9&&X.exp>=xNeed(X)){X.exp-=xNeed(X);X.layer++;if(X.layer%3===0)xLog(L,`修为到了炼气${'一二三四五六七八九'[X.layer-1]}层。`);}
+  if(X.realm>=1&&(X.realm>1||X.layer===9)&&X.realm<9&&X.exp>=xNeed(X)&&!(X.wait>L.age)&&!L.queue.length){queue(L,evXBreak(L,c));return;}
+  if(X.realm>=9&&X.exp>=xNeed(X)*3&&!L.queue.length){queue(L,evXTrib(L));return;}
+  // body
+  if(X.realm>=1){L.st.health=clamp(L.st.health+(95-L.st.health)*.08*X.realm,1,100);L.chronic=Math.max(0,L.chronic-.2*X.realm);bump(L,'mind',X.realm>=2?.5:0);}
+  if(X.realm>=2&&L.flags.dem){L.flags.dem=0;}
+  // side income (real money)
+  if(X.side&&X.side!=='none'){const inc=c.g*XSIDE[X.side][1]*(1+X.realm*.4)*(cult?.5:1);L.money.liq+=inc;L.xianInc=inc;if(X.side==='stream'||X.side==='guard')X.exposed+=.15;if(rnd()<.06)log(L,`${XSIDE[X.side][0].replace(/^开|^做|^当|^给|^在/,'')}这一年挣了大约 ${fmtMoney(inc)}。`,'money');}
+  // mountain life
+  if(X.mode==='mountain'){bump(L,'social',-1.5);if(rnd()<.25)log(L,pick(['山里下了一场大雪，你在雪里打坐了一夜。','师父今天只说了一句话：“慢一点。”','你在后山的瀑布下练了一整天的功。','观里的老槐树开花了。']),'yr');}
+  else if(cult&&rnd()<.25)log(L,pick(['深夜，你在阳台上打坐，城市的灯一盏盏熄了。','你在地铁里闭着眼睛吐纳，没人注意到你。','你把一块玉压在枕头下，睡梦里也在修炼。','楼下的流浪猫总喜欢趴在你打坐的地方。']),'yr');
+  if(yearOf(L)===2060&&!L.flags.lq){L.flags.lq=1;xLog(L,'这一年，全世界的人都觉得空气不一样了。新闻里管这叫“灵气复苏”。修行，突然变得容易了很多。','world');}
+  if(!L.queue.length&&rnd()<.3){const ok=XEVS.filter(e=>e.c(L));if(ok.length){const e=wpick(ok,e=>e.w);const ev=e.b(L,c);if(ev)queue(L,ev);}}}
+function evXTrib(L){return{title:'天劫',text:'渡劫期圆满。城市上空的云越压越低，天气预报说今天是晴天。九道雷，熬过去就是飞升。',opts:[{t:'去没人的地方迎劫',w:1,f:L=>{for(let i=1;i<=9;i++){if(rnd()>.9-i*.02+L.st.health*.001){die(L,`倒在了第${'一二三四五六七八九'[i-1]}道天雷之下`);return;}}L.xian.fs=1;die(L,'白日飞升，离开了这个世界');}}]};}
+// ---------- hooks into the life engine ----------
+const _careerX=career;
+career=function(L,c){_careerX(L,c);if(L.xian)xianTick(L,c);};
+const _qPersX=qPers;
+qPers=function(L,c){const X=L.xian;if(!X||X.realm<1)return _qPersX(L,c);const pa=Math.round(X.pa);if(pa>=110)return 1;const qb=table(L.cur,L.sex,sYear(L)).q[Math.min(110,pa)];return 1-Math.pow(1-qb,riskMult(L,c)*(X.realm>=2?.3:1));};
+const _causeOfX=causeOf;
+causeOf=function(L,c){const X=L.xian;if(X&&X.realm>=1&&X.pa>=80)return X.realm>=2?'寿元耗尽，坐化':'寿终正寝（修行让你多活了好些年）';return _causeOfX(L,c);};
+const _expHX=expH;
+expH=function(L,c){const X=L.xian;if(!X||X.realm<1)return _expHX(L,c);const a=L.age;L.age=Math.round(X.pa);const r=_expHX(L,c);L.age=a;return r;};
+const _autoFocusX=autoFocus;
+autoFocus=function(L){if(L.xian&&L.age>=6&&rnd()<.45)return'cultivate';return _autoFocusX(L);};
+// the encounter now starts cultivation inside this same life
+evXianCall=function(L){const t=L.age<14?{t:'山里的老人',x:'你在后山迷了路，天快黑的时候，遇见一个白头发的老人坐在石头上，好像在等你。他看了你很久，说：“跟我走吗？”'}:L.age<30?{t:'发烫的玉佩',x:'旧货摊上一枚玉佩突然烫了你的手。摊主不见了，只剩一个穿灰袍的人站在你身后：“你看得见它发光，对吧？”'}:{t:'雷雨夜',x:'雷雨夜，一道闪电落在你身边。醒来后，你看见空气里飘着细细的光点。一个陌生人敲开门：“你终于看见了。走吧。”'};
+  return{title:t.t,text:t.x,opts:[{t:'跟着走',d:'人生会从这里转个弯',w:.15,f:L=>{xLog(L,'你跟着那个人走进了山里。');queue(L,evXRoot(L));}},{t:'当作一场梦',w:1,f:L=>{log(L,'很多年后，你还会想起那一天。','era');}}]};};
+function xianHTML(L){const X=L.xian;if(!X)return'';const n=xNeed(X);
+  return`<div class="sec"><h4>修行</h4><p class="small"><b>${xrName(X)}</b> · ${X.root} · 主修《${XGONG[X.gong][0]}》${X.sect?' · 师承'+X.sect:''}${X.mode==='mountain'?' · 正在山中修行':''}</p>
+   <p class="xs muted">修为 ${Math.floor(X.exp)} / ${n} · 身体年龄约 ${Math.round(X.pa)} 岁（实际 ${L.age} 岁）${X.side&&X.side!=='none'?` · 副业：${XSIDE[X.side][0].replace(/^开|^做|^当|^给|^在/,'')}`:''} · 被人注意的程度 ${X.exposed>=3?'高':X.exposed>=1.5?'中':'低'}</p>
+   <p class="xs muted">把“今年的重心”设成“修炼”，进展会快很多。修为越高，老得越慢、越少生病；筑基时旧病会好。</p></div>`;}
+
+const _findJobX=findJob;
+findJob=function(L,c){if(L.xian&&L.xian.mode==='mountain')return;return _findJobX(L,c);};
+
+// cultivators above foundation rarely fall ill; lower ones shrug off half of it
+const _evIllX=evIll;
+evIll=function(L,c){const X=L.xian;if(X&&X.realm>=1&&rnd()<(X.realm>=2?.92:.5))return{skip:1,t:X.realm>=2?'你感到一阵不适，运转了几个周天，就好了。':'你病了一场，靠着吐纳，比别人好得快。'};return _evIllX(L,c);};
+const _queueX=queue;
+queue=function(L,ev){if(ev&&ev.skip){if(ev.t)log(L,ev.t,'health');return;}return _queueX(L,ev);};
+const _causeOfX2=causeOf;
+causeOf=function(L,c){const X=L.xian;if(X&&X.realm>=2&&X.pa<80)return pick(['闭关时出了岔子','与人斗法受了重伤，没能挺过去','一场谁也说不清的意外']);return _causeOfX2(L,c);};
+const _summarizeX=summarize;
+summarize=function(L,peers){const r=_summarizeX(L,peers);const X=L.xian;if(X&&r){const t=X.fs?'最后白日飞升，离开了这个世界。':`${X.since}岁那年遇到奇人，从此修行，${X.realm>=1?'到了'+xrName(X)+'。':'却始终没能入门。'}${L.age-X.pa>20?`死时看起来只有 ${Math.round(X.pa)} 岁。`:''}`;r.epitaph=(r.epitaph?r.epitaph+' ':'')+t;}return r;};
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -2314,7 +2423,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.0.2',APP_DATE='2026-10-19';
+const APP_VER='3.1',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -2561,8 +2670,8 @@ function feedPaint(F,pick,keyFn,det,toggle,empty){
   F.onscroll=()=>{if(F.scrollHeight-F.scrollTop-F.clientHeight<60)nb.hidden=true;};
   if(atBottom)F.scrollTop=F.scrollHeight;else{F.scrollTop=prevTop;nb.hidden=false;}}
 function renderFocus(L){const el=$('#gFocus');if(!el)return;if(L.age<6){el.innerHTML='';return;}
-  const KF={study:'学习',play:'和朋友玩',chores:'帮家里干活',sport:'运动',hobby:'兴趣爱好',auto:'随它去',work:'工作',family:'家人朋友',health:'锻炼身体',fun:'享受生活'};
-  const ks=L.age<15?['study','play','chores','sport','hobby','auto']:['work','study','family','health','hobby','fun','auto'];
+  const KF={cultivate:'修炼',study:'学习',play:'和朋友玩',chores:'帮家里干活',sport:'运动',hobby:'兴趣爱好',auto:'随它去',work:'工作',family:'家人朋友',health:'锻炼身体',fun:'享受生活'};
+  const ks=(L.age<15?['study','play','chores','sport','hobby','auto']:['work','study','family','health','hobby','fun','auto']).concat(L.xian?['cultivate']:[]);
   const cur=ks.includes(L.focus)?L.focus:'auto';const k2=ks.join()+cur;if(el._k===k2)return;el._k=k2;
   el.innerHTML=`<label class="xs muted">今年的重心 <select id="focusSel">${ks.map(k=>`<option value="${k}" ${k===cur?'selected':''}>${KF[k]}</option>`).join('')}</select></label>`;
   $('#focusSel').onchange=e=>{L.focus=e.target.value;el._k=null;render();};}
@@ -2574,7 +2683,7 @@ function render(){
   const s=L.st;
   const mi=s.mind??65;
   const st=(n,v)=>`<span class="ms${v<30?' low':''}"><i>${n}</i><b class="num">${Math.round(v)}</b></span>`;
-  $('#gStats').innerHTML=st('健康',healthAll(L))+st('幸福',s.happy)+st('知识',s.know)+st('人际',s.social)+`<span class="ms"><i>净资产</i><b class="num">${fmtMoney(netWorth(L))}</b></span>`;
+  $('#gStats').innerHTML=st('健康',healthAll(L))+st('幸福',s.happy)+st('知识',s.know)+st('人际',s.social)+`<span class="ms"><i>净资产</i><b class="num">${fmtMoney(netWorth(L))}</b></span>`+(L.xian?`<span class="ms xr"><i>修为</i><b>${xrName(L.xian)}</b></span>`+(L.xian.realm>=1&&L.age-L.xian.pa>=3?`<span class="ms"><i>看起来</i><b class="num">${Math.round(L.xian.pa)}岁</b></span>`:''):'');
   renderFeed(L);
   let ev='';
   if(G.soft&&G.soft.kind==='pause')ev=`<div class="event soft"><span class="tag">停一下</span><h3>${PAUSE[G.soft.a]}</h3><textarea id="softTxt" maxlength="200" placeholder="想到什么就写一句。不写也可以。"></textarea><div class="actions"><button class="pri" id="softOk">记下来</button><button id="softNo">跳过</button></div></div>`;
@@ -2641,6 +2750,7 @@ function tLife(L,c){
    ${logHTML(shownLog,G.logAll?3000:(keyOnly?40:90),true,keyOnly)}${!G.logAll&&(keyOnly?nKey>40:G.shown>90)?'<div><button class="linkbtn" id="moreLog">查看更早的经历</button></div>':''}
    <p class="xs muted">${keyOnly?'只显示升学、工作、恋爱婚姻、生老病死这些大事。切到“全部”能看到每一天的小事。':'点一行可以加星，加星的会一直显示在重点里。'}</p></div>
    <div class="sec"><h4>今年的重心 · 随时可以改</h4>${L.age>=6?`<div class="seg" id="focusSeg">${seg(items,L.focus)}</div>`:'<p class="muted small">还小，正在长大。六岁以后可以选择每年的重心。</p>'}</div>
+   ${L.xian?xianHTML(L):''}
    ${careerHTML(L)?`<details class="sec fold"><summary>职业 · ${L.job?esc(jobName(L.job)):''}</summary>${careerHTML(L)}</details>`:''}
    <details class="sec fold"><summary>天赋、心愿和人生曲线</summary>${talentsWishesHTML(L)}<div class="sec"><h4>到现在为止的曲线</h4>${lifeCurve(L)}</div></details>
    ${L.need?`<details class="sec fold"><summary>幸福从哪里来</summary>${needsHTML(L,c)}</details>`:''}
@@ -3342,7 +3452,7 @@ function enterXian(L){
   try{const rec=summarize(L,G.peers);rec.stars=[];rec.real=pref.real||'';rec.teach=!!L.teach;rec.newAch=updateAgg(rec);const a=store.get(LIVES,[]);a.unshift(rec);store.set(LIVES,a.slice(0,10));}catch(e){}
   xFromLife(L);XG.playing=true;XG.acc=0;route('xgame');toast('你发现了隐藏的修仙人生');
 }
-const xianUnlocked=()=>!!xmeta().unlocked;
+const xianUnlocked=()=>false;
 function syncXian(){XIAN_ON=true;}
 
 // ================= 修仙：伤病与疗愈、修仙百艺（职业收入）、随境界变化的需求 =================
