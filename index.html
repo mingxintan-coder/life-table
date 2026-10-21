@@ -458,6 +458,8 @@ const HIST=[
 // ---------- math ----------
 let RNG=Math.random;const rnd=()=>RNG();
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const BA=L=>L.xian&&L.xian.realm>=1&&L.xian.pa<L.age?Math.round(L.xian.pa):L.age; // body age: cultivators age slowly
+const bodyAge=BA;
 function randn(){let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 function pick(a){return a[Math.floor(rnd()*a.length)];}
 function wpick(items,wf){let t=0;const ws=items.map(i=>{const w=Math.max(0,wf(i)||0);t+=w;return w;});if(t<=0)return items[0];let r=rnd()*t;for(let i=0;i<items.length;i++){r-=ws[i];if(r<=0&&ws[i]>0)return items[i];}return items[items.length-1];}
@@ -530,7 +532,7 @@ const SPCAT={
  job:{n:'求职和职业发展',d:'更容易找到工作、升职',c:.03,ok:L=>!L.retired,fx:(L,c,v)=>{L.flags.career=v;}},
  give:{n:'捐款和公益',d:'幸福↑',c:.02,fx:(L,c,v)=>bump(L,'happy',.5*v)}};
 function budgetCost(L,c,hh){const base=Math.max(hh||0,c.g*.3);L.budget=L.budget||{};return Object.entries(SPCAT).filter(([k,s])=>!s.ok||s.ok(L)).map(([k,s])=>({k,lv:L.budget[k]||0,cost:(L.budget[k]||0)*s.c*base}));}
-function autoFocus(L){const a=L.age;if(a<6)return'grow';if(a<15)return wpick(['study','play','chores','sport','hobby'],k=>({study:3,play:2,chores:L.fpct<.4?2:.6,sport:1,hobby:1})[k]);return wpick(['work','study','family','health','hobby','fun'],k=>({work:L.job?3:.5,study:L.school?3:.6,family:L.partner||L.kids.length?2:1,health:L.age>50?2:.8,hobby:1,fun:1})[k]);}
+function autoFocus(L){const a=L.age;if(a<6)return'grow';if(a<15)return wpick(['study','play','chores','sport','hobby'],k=>({study:3,play:2,chores:L.fpct<.4?2:.6,sport:1,hobby:1})[k]);return wpick(['work','study','family','health','hobby','fun'],k=>({work:L.job?3:.5,study:L.school?3:.6,family:L.partner||L.kids.length?2:1,health:BA(L)>50?2:.8,hobby:1,fun:1})[k]);}
 function religionOf(c){const k=c.k;if(MUSLIM_K.has(k))return'伊斯兰教';if(k==='IN'||k==='NP')return'印度教';if(['TH','MM','KH','LA','LK','BT','MN'].includes(k))return'佛教';if(['CN','VN','KP','JP','KR','TW','HK','MO','SG'].includes(k))return rnd()<.25?'佛教':'没有特定信仰';if(k==='IL')return'犹太教';if(c.r==='europe_central_asia'||c.r==='america'||['PH','KE','UG','ZM','ZW','AO','CD','CG','GA','RW','BI','MW','NA','BW','ZA','LS','SZ','PG','GH','ET','NG','TZ','MZ','CM','MG','AU','NZ'].includes(k))return rnd()<.85?'基督教':'没有特定信仰';return'传统信仰';}
 const MUSLIM_K=new Set('AF AL AZ BD BH BN DZ EG ID IQ IR JO KW KG KZ LB LY MA MV ML MR MY NE OM PK PS QA SA SN SD SO SY TD TJ TM TN TR UZ YE AE GM GN DJ KM'.split(' '));
 function parentJobs(L,c){const y=yearOf(L),rural=L.rural,agr=c.agr/100*(y<1970?1.6:1);
@@ -614,7 +616,7 @@ function riskMult(L,c){
 }
 function qPers(L,c){const qb=table(L.cur,L.sex,sYear(L)).q[Math.min(110,L.age)];return 1-Math.pow(1-qb,riskMult(L,c));}
 function causeOf(L,c){
-  const a=L.age,g=incGroup(c),sm=L.smoker?1:0,y=yearOf(L),old=L.world==='past'&&y<1960;
+  const a=BA(L),g=incGroup(c),sm=L.smoker?1:0,y=yearOf(L),old=L.world==='past'&&y<1960;
   let list;
   if(a<1)list=[['新生儿期疾病',5],['早产并发症',3],['肺炎',g==='high'?.5:3],['先天性疾病',2],['腹泻疾病',g==='low'?2.5:.3],['破伤风',old?1.5:0]];
   else if(a<5)list=[['肺炎',3],['腹泻疾病',g==='low'?3:.4],['疟疾',c.r==='sub_saharan_africa'?4:0],['麻疹',old||g==='low'?2:.1],['意外伤害',2],['营养不良相关疾病',g==='low'?2:0],['先天性疾病',1.5]];
@@ -658,7 +660,7 @@ function histDeath(L){
   for(const h of histEvents(L)){
     if(h.econ)L.econ*=h.econ;
     if(!L.flags['h'+h.y0+h.ks])/*announce once*/{L.flags['h'+h.y0+h.ks]=1;log(L,h.t,'world');if(h.rate)L.st.happy=clamp(L.st.happy-8,0,100);if(h.crash)L.flags.forceCrash=y;}
-    if(h.rate){let r=h.rate;if(h.male&&L.sex==='M'&&L.age>=17&&L.age<=45)r*=h.male;if(h.young&&L.age>=15&&L.age<=40)r*=h.young;if(h.old&&L.age>=65)r*=h.old;if(h.old&&L.age<40)r*=.1;
+    if(h.rate){let r=h.rate;if(h.male&&L.sex==='M'&&L.age>=17&&L.age<=45)r*=h.male;if(h.young&&L.age>=15&&L.age<=40)r*=h.young;if(h.old&&BA(L)>=65)r*=h.old;if(h.old&&BA(L)<40)r*=.1;
       if(rnd()<Math.min(.5,r)){die(L,h.cause);return true;}}
   }
   // armed conflict (UCDP 1989–2018, deaths per 100k), counted 2x for non-battle excess
@@ -706,7 +708,7 @@ function stats(L,c){
   s.know=clamp(s.know+dk+randn()*.8,0,100);
   let ds=(50-s.social)*.05+randn()*2;
   if(f==='family')ds+=4;if(f==='work')ds-=1.5;if(f==='study')ds-=.5;if(f==='fun')ds+=1.5;if(f==='play')ds+=3.5;if(f==='chores')ds+=1.5;if(f==='sport')ds+=1;
-  if(L.partner&&L.partner.alive)ds+=.8;if(L.pet)ds+=.5;if(a>75)ds-=.8;if(L.alc>=2||L.gamble||L.drugs)ds-=2;
+  if(L.partner&&L.partner.alive)ds+=.8;if(L.pet)ds+=.5;if(BA(L)>75)ds-=.8;if(L.alc>=2||L.gamble||L.drugs)ds-=2;
   s.social=clamp(s.social+ds,0,100);
   if(s.mind==null)s.mind=65;
   const N=computeNeeds(L,c);L.need=N;
@@ -773,7 +775,7 @@ function wage(L,c){
 function pension(L,c){return L.lastWage*c.pen*(L.formal?1:.25)+c.g*(c.g>30000?.12:.03);}
 function career(L,c){
   const J=L.job;
-  if(J&&!J.own&&!L.flags.abroad&&rnd()<c.une/100*.35*(L.age>=45?1.6:1)*(L.econ<.9?2:1)&&!L.queue.length){L.job=null;bump(L,'happy',-8);queue(L,{title:'失业',text:`单位裁员，你丢了工作。当地失业率约 ${c.une.toFixed(1)}%${L.age>=45?'，你这个年纪再找工作不容易':''}。`,opts:[{t:'马上找下一份',w:2,f:L=>findJob(L,cNow(L))},{t:'先做点零工撑着',w:1,f:L=>{L.job={t:pick(['外卖骑手','网约车司机','零工','保安']),lvl:1,yrs:0,z:-.4,own:null,hi:false};log(L,'先做零工维持生活。','work');}}]});return;}
+  if(J&&!J.own&&!L.flags.abroad&&rnd()<c.une/100*.35*(BA(L)>=45?1.6:1)*(L.econ<.9?2:1)&&!L.queue.length){L.job=null;bump(L,'happy',-8);queue(L,{title:'失业',text:`单位裁员，你丢了工作。当地失业率约 ${c.une.toFixed(1)}%${BA(L)>=45?'，你这个年纪再找工作不容易':''}。`,opts:[{t:'马上找下一份',w:2,f:L=>findJob(L,cNow(L))},{t:'先做点零工撑着',w:1,f:L=>{L.job={t:pick(['外卖骑手','网约车司机','零工','保安']),lvl:1,yrs:0,z:-.4,own:null,hi:false};log(L,'先做零工维持生活。','work');}}]});return;}
   if(J){
     J.yrs++;L.workYrs=(L.workYrs||0)+1;L.jobYrs=L.jobYrs||{};L.jobYrs[J.t]=(L.jobYrs[J.t]||0)+1;L.topJob=(!L.topJob||J.lvl>=L.topJob.lvl)?{t:jobName(J),lvl:J.lvl,own:!!J.own}:L.topJob;
     if(J.own&&J.own.mult>8&&!L.flags.bigco){L.flags.bigco=1;log(L,`你的${J.t}越做越大，成了当地有名的公司。`,'work');bump(L,'happy',8);}
@@ -789,7 +791,7 @@ function career(L,c){
   if(!L.retired&&L.job){
     if(L.age===c.ret)queue(L,evRetire(L,c));
     if(L.flags.retireAt===L.age||L.age>=c.ret+10)retire(L,c);
-    else if(L.st.health<18&&L.age>50){log(L,'身体撑不住了，只好停下工作。','health');retire(L,c);}
+    else if(L.st.health<18&&BA(L)>50){log(L,'身体撑不住了，只好停下工作。','health');retire(L,c);}
   }
   if(!L.retired&&!L.job&&L.age>=c.ret+3)L.retired=true;
 }
@@ -862,7 +864,7 @@ function love(L,c){
     if(a>=17&&a<=75&&!(L.flags.solo>a)&&L.orient){
       const trad=(c.tfr>2.8||yearOf(L)<1975)&&L.orient==='opp'&&a>=17&&a<=32&&!L.marriages;
       if(trad&&!(L.flags.matchAsk>a)&&rnd()<.35+Math.min(.3,(c.tfr-2)*.08)){queue(L,evMatch(L,c));L.flags.matchAsk=a+2;return;}
-      const p=.16+L.st.social*.004+(L.focus==='family'?.12:0)+(L.budget&&L.budget.look||0)*.02-(a>40?.05:0)-(a>60?.05:0);
+      const p=.16+L.st.social*.004+(L.focus==='family'?.12:0)+(L.budget&&L.budget.look||0)*.02-(BA(L)>40?.05:0)-(BA(L)>60?.05:0);
       if(rnd()<p)queue(L,evMeet(L,c));
     }
     return;
@@ -926,7 +928,7 @@ function birth(L,c,adopt){
   else{const P=L.partner;if(P&&P.sex==='F'&&rnd()<mm){P.alive=false;log(L,`${P.name}在分娩时没能挺过来。当时当地每 10 万次分娩约有 ${Math.round(c.mmr)} 位母亲去世。`,'death');L.partner=null;L.widowed++;L.st.happy=clamp(L.st.happy-25,0,100);}}
 }
 function hazards(L,c){
-  const a=L.age;
+  const a=BA(L);
   if(a>35&&rnd()<.004*(a-30)*(L.smoker?1.6:1)*(L.exercise?.7:1))queue(L,evIll(L,c));
   if(rnd()<.012){L.st.health=clamp(L.st.health-12,1,100);log(L,pick(['摔了一跤，养了几个月伤。','遇到意外，所幸没有大碍。','干活时受了伤，休养了一阵。']),'health');}
   if(L.world!=='past'&&!L.flags.pand&&rnd()<.01){L.flags.pand=1;L.st.health=clamp(L.st.health-5,1,100);L.st.social=clamp(L.st.social-6,0,100);log(L,'一场大流行病席卷世界，生活停摆了一年多。','world');}
@@ -1061,7 +1063,7 @@ const POOL=[
    {t:'买',w:1.5,f:L=>buyHouse(L,c)},{t:'继续租',w:1,f:L=>{}}]};}},
  {c:(L,c)=>L.age>=20&&L.age<=65&&!L.pet,w:()=>.6,b:(L,c)=>({title:'一只小动物',text:'朋友家的猫生了一窝，问你要不要一只。',opts:[
    {t:'领回家',w:1,f:L=>{L.pet=L.age+14;log(L,'家里多了一只猫。');}},{t:'不了',w:1,f:L=>{}}]})},
- {c:(L,c)=>L.age>=25,w:()=>.6,b:(L,c)=>({title:'同学聚会',text:'多年没见的同学组织聚会。',opts:[
+ {c:(L,c)=>L.age>=25&&L.age<95,w:()=>.6,b:(L,c)=>({title:'同学聚会',text:'多年没见的同学组织聚会。',opts:[
    {t:'去',w:1.5,f:L=>bump(L,'social',6)},{t:'不去',w:1,f:L=>{}}]})},
  {c:(L,c)=>L.partner&&L.partner.st!=='dating'&&L.age>=25&&L.age<=60&&!(L.flags.tempt>L.age),w:()=>.5,b:(L,c)=>{L.flags.tempt=L.age+8;const P=L.partner;return{title:'暧昧',text:'工作中有人对你格外关心，话里有话。',opts:[
    {t:'保持距离',w:3,f:L=>{P.rel=clamp(P.rel+3,0,100);}},
@@ -1075,7 +1077,7 @@ const POOL=[
    ...(L.sibs>0?[{t:'交给兄弟姐妹',w:1,f:L=>bump(L,'social',-5)}]:[])]};}},
  {c:(L,c)=>L.age>=40&&L.money.liq>c.g*5,w:()=>.4,b:(L,c)=>({title:'捐一笔钱',text:'家乡的学校在募捐修校舍。',opts:[
    {t:`捐 ${fmtMoney(L.money.liq*.05)}`,w:1,f:L=>{L.money.liq*=.95;bump(L,'happy',5);log(L,'给家乡的学校捐了钱。');}},{t:'这次不了',w:1,f:L=>{}}]})},
- {c:(L,c)=>L.age>=68&&!L.partner&&L.st.social<45,w:()=>1,b:(L,c)=>({title:'一个人的晚年',text:'日子变得很安静，有时一整天都不说一句话。',opts:[
+ {c:(L,c)=>BA(L)>=68&&!L.partner&&L.st.social<45,w:()=>1,b:(L,c)=>({title:'一个人的晚年',text:'日子变得很安静，有时一整天都不说一句话。',opts:[
    {t:'去社区活动中心看看',w:2,f:L=>{bump(L,'social',10);bump(L,'happy',4);}},{t:'一个人也挺好',w:1,f:L=>{}}]})},
  {c:(L,c)=>(L.age===40||L.age===50)&&!L.flags['chk'+L.age],w:()=>4,b:(L,c)=>{L.flags['chk'+L.age]=1;return{title:'全面体检',text:'到了该做一次全面体检的年纪。',opts:[
    {t:'去做',d:`约 ${fmtMoney(c.g*.02)}`,w:2,f:L=>{L.money.liq-=c.g*.02;if(L.chronic>0){L.chronic=Math.max(0,L.chronic-.5);log(L,'体检发现了问题，及早处理了。','health');}else log(L,'体检一切正常。','health');}},{t:'不去',w:1,f:L=>{}}]};}}
@@ -1114,7 +1116,7 @@ const SPEND2=[
  {g:'身体',k:'teeth',n:'看牙、配眼镜',c:.03,fx:'h+2 p+1'},
  {g:'身体',k:'spa',n:'按摩、泡温泉放松',c:.03,fx:'h+1 p+3'},
  {g:'身体',k:'therapy',n:'找心理咨询师聊聊',c:.06,fx:'p+5',run:L=>{if(L.flags.dep&&rnd()<.4){L.flags.dep=0;log(L,'咨询了一段时间，心里松快了很多。','health');}},era:L=>yearOf(L)>=1960},
- {g:'身体',k:'nursing',n:'换一家更好的养老院',c:.5,fx:'h+3 p+3',ok:L=>L.age>=75},
+ {g:'身体',k:'nursing',n:'换一家更好的养老院',c:.5,fx:'h+3 p+3',ok:L=>BA(L)>=75},
  {g:'自己',k:'books',n:'买书、订网课',c:.01,fx:'k+2 p+1'},
  {g:'自己',k:'course',n:'报一个进修班',c:.05,fx:'k+5'},
  {g:'自己',k:'hobby',n:'在爱好上花点钱',c:.04,fx:'p+4 k+1',ok:L=>!!L.hobby},
@@ -1210,7 +1212,7 @@ function suicideCheck(L,c){
   return false;
 }
 function disease(L,c){
-  const a=L.age,g=incGroup(c),sm=L.smoker,F=L.sex==='F';
+  const a=BA(L),g=incGroup(c),sm=L.smoker,F=L.sex==='F';
   const list=[
     {n:'高血压',w:a>40?3:1,cost:.15,sev:.6},{n:'2 型糖尿病',w:a>40?2.5:.8,cost:.3,sev:.8},{n:'冠心病',w:a>50?2:.3,cost:.8,sev:1.2},
     {n:'乳腺癌',w:F&&a>35?1.5:0,cost:1.4,sev:1.6},{n:'宫颈癌',w:F&&a>30?(g==='high'?.3:1):0,cost:1.2,sev:1.6},{n:'前列腺癌',w:!F&&a>55?1.2:0,cost:1.2,sev:1.2},
@@ -1304,13 +1306,13 @@ function life2(L,c){
   // HIV
   if(a<=50&&!(L.xian&&L.xian.realm>=1)&&rnd()<c.hiv/100*.06){const art=y>=2005||(c.g>25000&&y>=1997);L.chronic+=art?.5:3;bump(L,'happy',-10);log(L,art?'检测出感染了艾滋病病毒。开始每天服药，病毒被压了下去。':'你感染了艾滋病病毒。那时还没有能用的药。','health');}
   // dementia
-  if(a>=70&&!L.flags.dem&&rnd()<.004*Math.pow(1.17,a-70)){L.flags.dem=1;bump(L,'know',-20);L.chronic+=1;queue(L,{title:'越来越记不住事',text:'医生说是阿尔茨海默病。以后会慢慢认不出熟悉的人。',opts:[
+  if(BA(L)>=70&&!L.flags.dem&&rnd()<.004*Math.pow(1.17,BA(L)-70)){L.flags.dem=1;bump(L,'know',-20);L.chronic+=1;queue(L,{title:'越来越记不住事',text:'医生说是阿尔茨海默病。以后会慢慢认不出熟悉的人。',opts:[
     {t:'住进养老院',d:`每年约 ${fmtMoney(c.g*.5)}`,w:c.g>20000?1.5:.3,f:L=>{L.flags.care=2;log(L,'住进了养老院。','family');}},
     {t:'由家人照顾',w:L.kids.some(k=>k.alive)?2:.3,f:L=>{log(L,'家人轮流照顾你。','family');bump(L,'social',2);}},
     {t:'一个人撑着',w:.5,f:L=>{bump(L,'health',-8);}}]});}
   if(L.flags.dem){bump(L,'know',-3);if(L.flags.care===2)L.money.liq-=c.g*.5;}
   // end-of-life decision
-  if(a>=70&&L.st.health<14&&!L.flags.eol){L.flags.eol=1;queue(L,{title:'最后的日子',text:'医生说，病已经很重了。接下来想怎样度过？',opts:[
+  if(BA(L)>=70&&L.st.health<14&&!L.flags.eol){L.flags.eol=1;queue(L,{title:'最后的日子',text:'医生说，病已经很重了。接下来想怎样度过？',opts:[
     {t:'进重症监护，尽量延长',d:`约 ${fmtMoney(c.g*.6)}`,w:1,f:L=>{L.money.liq-=c.g*.6;bump(L,'health',6);log(L,'住进了重症监护室。','health');}},
     {t:'回家，和家人在一起',w:1.2,f:L=>{bump(L,'happy',8);bump(L,'social',6);log(L,'你选择回家，安静地度过剩下的日子。','health');}},
     {t:'接受安宁疗护，减轻痛苦',w:c.g>15000?1:.2,f:L=>{bump(L,'happy',6);log(L,'接受了安宁疗护。','health');}}]});}
@@ -1321,9 +1323,9 @@ function evTeenPreg(L,c){const P=L.partner;return{title:'怀孕了',text:`${L.ag
   {t:'终止妊娠',d:'各地法律和条件不同',w:c.g>15000?1.2:.4,f:L=>{bump(L,'happy',-6);log(L,'你做了终止妊娠的决定。','health');}}]};}
 
 POOL.push(
- {c:(L,c)=>L.money.liq>c.g*.25&&L.age>=25&&yearOf(L)>=2005,w:(L,c)=>L.age>=60?1.6:.6,b:(L,c)=>({title:'一通电话',text:pick(['对方自称是公安局，说你的账户涉嫌洗钱，要你把钱转进“安全账户”。','一个陌生人加你好友，带你在一个平台上“投资”，前几次真的赚到了。','电话里传来哭腔，说是你的亲戚出了事，急需一笔钱。']),opts:[
+ {c:(L,c)=>L.money.liq>c.g*.25&&L.age>=25&&yearOf(L)>=2005,w:(L,c)=>BA(L)>=60?1.6:.6,b:(L,c)=>({title:'一通电话',text:pick(['对方自称是公安局，说你的账户涉嫌洗钱，要你把钱转进“安全账户”。','一个陌生人加你好友，带你在一个平台上“投资”，前几次真的赚到了。','电话里传来哭腔，说是你的亲戚出了事，急需一笔钱。']),opts:[
    {t:'挂掉，打电话核实',w:2,f:L=>{log(L,'你识破了一场骗局。','money');}},
-   {t:'照对方说的转钱',w:L.age>=65?.7:.3,f:L=>{const loss=L.money.liq*(.2+rnd()*.5);L.money.liq-=loss;bump(L,'happy',-10);log(L,`被骗走了 ${fmtMoney(loss)}，钱再也没能追回来。`,'money');}}]})},
+   {t:'照对方说的转钱',w:BA(L)>=65?.7:.3,f:L=>{const loss=L.money.liq*(.2+rnd()*.5);L.money.liq-=loss;bump(L,'happy',-10);log(L,`被骗走了 ${fmtMoney(loss)}，钱再也没能追回来。`,'money');}}]})},
  {c:(L,c)=>LABOR_OUT[L.cur]&&L.age>=20&&L.age<=45&&L.edu<=2&&!L.flags.abroad&&!L.flags.abAsk&&!L.emig,w:()=>2,b:(L,c)=>{L.flags.abAsk=1;const d=LABOR_OUT[L.cur];return{title:'出国打工',text:`中介说能介绍你去${d}工作${L.sex==='F'?'，做家政':'，在工地或工厂'}，工资是在家乡的好几倍，合同一签就是几年。`,opts:[
    {t:`去${d}`,d:'能寄钱回家，见不到家人',w:1.2,f:L=>{const n=2+Math.floor(rnd()*4);L.flags.abroad=L.age+n;if(true)L.job={t:L.sex==='F'?'家政工':'建筑工人',ck:L.sex==='F'?'maid':'build',lvl:1,yrs:0,ly:0,z:0,own:null,hi:false};else L.job.t=L.sex==='F'?'家政工':'建筑工人';bump(L,'social',-8);log(L,`去${d}打工，合同 ${n} 年。`,'work');
      if(!L.teach&&rnd()<(L.sex==='F'?.15:.08)){bump(L,'happy',-15);bump(L,'health',-6);log(L,pick(['雇主扣下了你的护照，工资也常常拖欠。','每天工作十几个小时，住在挤满人的宿舍里。']),'work');}}},
@@ -1353,13 +1355,13 @@ POOL.push(
  {c:(L,c)=>L.kids.some(k=>k.alive&&k.age<12)&&!(L.flags.kidSick>L.age),w:()=>.8,b:(L,c)=>{L.flags.kidSick=L.age+5;const k=L.kids.find(k=>k.alive&&k.age<12),cost=c.g*.4*(L.ins.med?.3:c.oop/100+.1);return{title:`${k.name}病了`,text:`${k.name}高烧不退，医生说要住院，大约 ${fmtMoney(cost)}。`,opts:[
    {t:'马上住院',w:3,f:L=>{L.money.liq-=cost;log(L,`${k.name}住院治好了。`,'family');}},
    {t:'先在家熬一熬',w:c.oop>60&&L.fpct<.4?1:.2,f:L=>{if(rnd()<(c.g<5000?.15:.04)){k.alive=false;log(L,`${k.name}没能熬过去。`,'death');bump(L,'happy',-30);}}}]};}},
- {c:(L,c)=>L.age>=58&&L.kids.some(k=>k.alive&&k.age>=25)&&!L.flags.kidAway,w:()=>.7,b:(L,c)=>{L.flags.kidAway=1;const k=L.kids.find(k=>k.alive&&k.age>=25);return{title:'孩子要走远了',text:`${k.name}要去${rnd()<.5?'另一座大城市':'国外'}工作，以后一年也见不了几次。`,opts:[
+ {c:(L,c)=>BA(L)>=58&&L.kids.some(k=>k.alive&&k.age>=25)&&!L.flags.kidAway,w:()=>.7,b:(L,c)=>{L.flags.kidAway=1;const k=L.kids.find(k=>k.alive&&k.age>=25);return{title:'孩子要走远了',text:`${k.name}要去${rnd()<.5?'另一座大城市':'国外'}工作，以后一年也见不了几次。`,opts:[
    {t:'支持孩子去',w:2,f:L=>{bump(L,'social',-5);log(L,`${k.name}去了很远的地方。`,'family');}},{t:'劝孩子留下',w:1,f:L=>{if(rnd()<.5){log(L,`${k.name}留了下来，但不太开心。`,'family');}else{bump(L,'social',-6);log(L,`${k.name}还是走了。`,'family');}}}]};}},
- {c:(L,c)=>L.age>=60&&L.kids.filter(k=>k.alive&&k.age>=20).length>=1&&!(L.flags.kidMoney>L.age)&&c.pen<.3,w:()=>1.5,b:(L,c)=>{L.flags.kidMoney=L.age+5;return{title:'养老靠谁',text:'当地退休金很少，老了大多靠子女。',opts:[
+ {c:(L,c)=>BA(L)>=60&&L.kids.filter(k=>k.alive&&k.age>=20).length>=1&&!(L.flags.kidMoney>L.age)&&c.pen<.3,w:()=>1.5,b:(L,c)=>{L.flags.kidMoney=L.age+5;return{title:'养老靠谁',text:'当地退休金很少，老了大多靠子女。',opts:[
    {t:'让孩子每月寄钱',w:1.5,f:L=>{const n=L.kids.filter(k=>k.alive&&k.age>=20).length;L.money.liq+=c.g*.25*n*5;log(L,'孩子们开始按月给你寄生活费。','family');}},{t:'不想拖累孩子',w:1,f:L=>{bump(L,'social',-2);}}]};}},
- {c:(L,c)=>L.grandkids>0&&L.age>=50&&L.age<=78&&!L.flags.gkCare,w:(L,c)=>['CN','KR','JP','VN','IN','TW'].includes(c.k)?2:.5,b:(L,c)=>{L.flags.gkCare=1;return{title:'帮忙带孙辈',text:'孩子工作忙，想请你帮忙带孙辈。',opts:[
+ {c:(L,c)=>L.grandkids>0&&BA(L)>=50&&BA(L)<=78&&!L.flags.gkCare,w:(L,c)=>['CN','KR','JP','VN','IN','TW'].includes(c.k)?2:.5,b:(L,c)=>{L.flags.gkCare=1;return{title:'帮忙带孙辈',text:'孩子工作忙，想请你帮忙带孙辈。',opts:[
    {t:'去帮忙',w:2,f:L=>{bump(L,'social',6);bump(L,'happy',3);bump(L,'health',-3);log(L,'你搬过去帮忙带孙辈。','family');}},{t:'我也想过自己的日子',w:1,f:L=>{bump(L,'happy',2);}}]};}},
- {c:(L,c)=>L.age>=65&&L.kids.filter(k=>k.alive).length>=2&&netWorth(L)>c.g*3&&!L.flags.will,w:()=>1,b:(L,c)=>{L.flags.will=1;const sons=L.kids.some(k=>k.alive&&k.sex==='M');return{title:'立遗嘱',text:`你的财产大约有 ${fmtMoney(netWorth(L))}。要不要早点安排好？`,opts:[
+ {c:(L,c)=>BA(L)>=65&&L.kids.filter(k=>k.alive).length>=2&&netWorth(L)>c.g*3&&!L.flags.will,w:()=>1,b:(L,c)=>{L.flags.will=1;const sons=L.kids.some(k=>k.alive&&k.sex==='M');return{title:'立遗嘱',text:`你的财产大约有 ${fmtMoney(netWorth(L))}。要不要早点安排好？`,opts:[
    {t:'子女平分',w:1.5,f:L=>log(L,'立了遗嘱，财产由子女平分。','family')},
    ...(sons?[{t:'大部分留给儿子',w:SONPREF.has(c.k)?1.5:.3,f:L=>{log(L,'立了遗嘱，大部分财产留给儿子。','family');if(rnd()<.4){bump(L,'social',-8);log(L,'女儿们知道后，和你疏远了。','family');}}}]:[]),
    {t:'留给最照顾我的那个',w:1,f:L=>log(L,'立了遗嘱，留给最照顾你的孩子。','family')},
@@ -1368,7 +1370,7 @@ POOL.push(
    {t:'借网贷先还上',d:'利息非常高',w:1,f:L=>{L.flags.shark=1;bump(L,'happy',-6);log(L,'借了网贷拆东墙补西墙。','money');}},
    {t:'找家里人借',w:1.2,f:L=>{const x=Math.min(L.money.debt,c.g*.3*(L.fpct+.2));L.money.debt-=x;bump(L,'social',-3);log(L,'家里人帮你还了一部分。','money');}},
    {t:'砍掉所有开支，硬扛',w:1,f:L=>{L.saveRate=.4;bump(L,'happy',-5);}}]};}},
- {c:(L,c)=>L.age>=60&&!L.flags.hear&&rnd()<.3,w:()=>.6,b:(L,c)=>{L.flags.hear=1;return{title:'听不清了',text:'别人说话你越来越听不清，聚会时常常只能陪笑。',opts:[
+ {c:(L,c)=>BA(L)>=60&&!L.flags.hear&&rnd()<.3,w:()=>.6,b:(L,c)=>{L.flags.hear=1;return{title:'听不清了',text:'别人说话你越来越听不清，聚会时常常只能陪笑。',opts:[
    {t:'配助听器',d:`约 ${fmtMoney(c.g*.08)}`,w:c.g>10000?1.5:.4,f:L=>{L.money.liq-=c.g*.08;log(L,'配了助听器。','health');}},{t:'算了',w:1,f:L=>{bump(L,'social',-6);}}]};}},
  {c:(L,c)=>L.age>=40&&L.age<=70&&L.st.health<55&&!(L.flags.bpAsk>L.age),w:()=>1,b:(L,c)=>{L.flags.bpAsk=L.age+5;return{title:'医生的叮嘱',text:'医生说你的血压和血糖都偏高，要少吃盐少喝酒，规律吃药。',opts:[
    {t:'照医嘱来',d:`每年药费约 ${fmtMoney(c.g*.03)}`,w:1.2,f:L=>{L.money.liq-=c.g*.03;bump(L,'health',4);}},{t:'没那么严重',w:1,f:L=>{L.chronic+=.3;}}]};}},
@@ -1390,7 +1392,7 @@ function compileCond(spec){
   const fs=[];
   for(const tok of spec.trim().split(/\s+/).filter(Boolean)){
     let m;
-    if(m=tok.match(/^a(\d+)-(\d+)$/)){const lo=+m[1],hi=+m[2];fs.push((L)=>L.age>=lo&&L.age<=hi);}
+    if(m=tok.match(/^a(\d+)-(\d+)$/)){const lo=+m[1],hi=+m[2];fs.push(lo>=40?(L)=>{const a=bodyAge(L);return a>=lo&&a<=hi;}:(L)=>L.age>=lo&&L.age<=hi);}
     else if(m=tok.match(/^y(\d+)-(\d+)$/)){const lo=+m[1],hi=+m[2];fs.push((L)=>{const y=yearOf(L);return y>=lo&&y<=hi;});}
     else if(m=tok.match(/^y=(\d+)$/)){const v=+m[1];fs.push(L=>yearOf(L)===v);}
     else if(m=tok.match(/^(!?)@([A-Z,]+)$/)){const neg=!!m[1],set=new Set(m[2].split(','));fs.push((L)=>set.has(L.cur)!==neg);}
@@ -1693,7 +1695,7 @@ POOL.push(
    {t:'找个时间认真聊一聊',w:1.5,f:L=>{if(rnd()<.6){P.rel=clamp(P.rel+8,0,100);log(L,'把话说开以后，那个周末你们把孩子托给老人，订了一家小旅馆，像刚恋爱时那样，在彼此身边慢慢找回了感觉。','love');}else P.rel=clamp(P.rel-3,0,100);}},
    {t:'一起去看伴侣咨询或医生',d:`约 ${fmtMoney(c.g*.05)}`,w:c.g>15000?1:.3,f:L=>{L.money.liq-=c.g*.05;P.rel=clamp(P.rel+12,0,100);}},
    {t:'就这样吧',w:1,f:L=>{P.rel=clamp(P.rel-8,0,100);}}]};}},
- {adult:1,c:(L,c)=>adultOK(L)&&partnerAdult(L)&&L.age>=50&&L.age<=75&&!L.flags.agingSex,w:()=>.8,b:(L,c)=>{L.flags.agingSex=1;const M=L.sex==='M',y=yearOf(L),med=M?y>=1998:y>=1980;return{title:'身体变了',text:M?'这几年，你在亲密时常常力不从心，心里很不是滋味。':'更年期之后，亲密时常常不舒服，你开始躲着。',opts:[
+ {adult:1,c:(L,c)=>adultOK(L)&&partnerAdult(L)&&BA(L)>=50&&BA(L)<=75&&!L.flags.agingSex,w:()=>.8,b:(L,c)=>{L.flags.agingSex=1;const M=L.sex==='M',y=yearOf(L),med=M?y>=1998:y>=1980;return{title:'身体变了',text:M?'这几年，你在亲密时常常力不从心，心里很不是滋味。':'更年期之后，亲密时常常不舒服，你开始躲着。',opts:[
    {t:'去看医生',d:med?'现在有不少有效的办法':'那个年代还没什么好办法',w:med?1.5:.4,f:L=>{if(med&&rnd()<.75){bump(L,'happy',4);L.partner.rel=clamp(L.partner.rel+6,0,100);log(L,'看了医生，问题解决了不少。','health');}else log(L,'看了医生，没什么改善。','health');}},
    {t:'和伴侣坦白聊聊',w:1.2,f:L=>{L.partner.rel=clamp(L.partner.rel+4,0,100);log(L,'你们学会了慢下来。依偎着说话的时间，比从前任何时候都长。','love');}},
    {t:'不提，就这样',w:1,f:L=>{bump(L,'happy',-3);L.partner.rel=clamp(L.partner.rel-4,0,100);}}]};}},
@@ -1765,7 +1767,7 @@ const STAGE_LINES=[
  [L=>L.partner.st!=='dating'&&L.partner.yrs>=8,['结婚这么多年，{p}一个眼神你就懂了。','老夫老妻了，偶尔一个晚上，还是会像年轻时那样心跳。','孩子不在家的周末，家里忽然安静得让人心动。','{p}的身体你早已熟悉，可那晚你还是觉得新鲜。']],
  [L=>L.partner.rel<40,['吵完架的深夜，你们在黑暗里和好，什么也没解释。','你们已经很久没碰过对方了，那晚{p}忽然伸过手来，你愣了一下，没有躲开。']],
  [L=>L.kids.some(k=>k.alive&&k.age<3),['孩子刚睡着，你们就在客厅里抱在了一起，又被一声啼哭打断。','趁孩子午睡的一个小时，你们像做贼一样溜回卧室。']],
- [L=>L.age>=55,['年纪大了，你们不再着急，一个拥抱就能持续很久。','{p}的手已经有了皱纹，握住你的时候，还是像当年一样热。','那晚你们翻出年轻时的照片，看着看着，就靠在了一起。']],
+ [L=>BA(L)>=55,['年纪大了，你们不再着急，一个拥抱就能持续很久。','{p}的手已经有了皱纹，握住你的时候，还是像当年一样热。','那晚你们翻出年轻时的照片，看着看着，就靠在了一起。']],
  [L=>!!L.flags.abroad&&L.flags.abroad>L.age,['你在异国的宿舍里，和{p}视频到深夜，屏幕两边都不舍得挂断。','一年才回一次家。那晚你们几乎没有睡。']]
 ];
 function adultMoment(L){const P=L.partner;const pool=[];tastesOf(P).forEach(t=>(TASTE_LINES[t]||[]).forEach(x=>pool.push(x)));tastesOf(L).forEach(t=>(TASTE_LINES[t]||[]).forEach(x=>pool.push(x)));for(const[cond,ls]of STAGE_LINES)if(cond(L))ls.forEach(x=>{pool.push(x);pool.push(x);});
@@ -1802,7 +1804,7 @@ const TASTE_SCENES={
 const STAGE_SCENES=[
  [L=>L.partner.yrs<=1,['第一次去{p}家，屋子很小，书架上摆满了TA喜欢的东西。你们坐在地板上喝了一瓶酒，聊到凌晨两点，后来你没有回家。早上醒来，TA的猫正蹲在你的胸口上盯着你看。']],
  [L=>L.partner.st!=='dating'&&L.partner.yrs>=10,['结婚十几年了，孩子去夏令营的那一周，家里忽然空了下来。你们像刚恋爱时一样，晚上不开灯，在客厅里跳了一支很笨拙的舞。那一周，你们好像把这些年欠下的都补了回来。']],
- [L=>L.age>=60,['你们都老了。{p}的头发白了，你的眼睛也花了。可是冬天的晚上，你们还是会在被子里把冰凉的脚贴在对方身上，然后笑着骂对方。这样的亲密，年轻时你们都不懂。']]
+ [L=>BA(L)>=60,['你们都老了。{p}的头发白了，你的眼睛也花了。可是冬天的晚上，你们还是会在被子里把冰凉的脚贴在对方身上，然后笑着骂对方。这样的亲密，年轻时你们都不懂。']]
 ];
 const _adultMoment=adultMoment;
 adultMoment=function(L){
@@ -1830,7 +1832,7 @@ const _newLife=newLife;
 newLife=function(o){const L=_newLife(o);const a=pick(TAL_K);let b=rnd()<.5?pick(TAL_K.filter(k=>k!==a&&!(a==='strong'&&k==='frail')&&!(a==='frail'&&k==='strong'))):null;L.talents=b?[a,b]:[a];
   if(hasT(L,'strong'))L.st.health=clamp(L.st.health+5,1,100);if(hasT(L,'frail'))L.st.health=clamp(L.st.health-8,1,100);if(hasT(L,'cheer'))L.st.mind=clamp(L.st.mind+8,0,100);return L;};
 const _expH=expH;expH=function(L,c){return _expH(L,c)+(hasT(L,'strong')?5:0)-(hasT(L,'frail')?6:0);};
-const _riskMult=riskMult;riskMult=function(L,c){let m=_riskMult(L,c);if(hasT(L,'longev')&&L.age>50)m*=.8;if(hasT(L,'frail')&&L.age<10)m*=1.3;return m;};
+const _riskMult=riskMult;riskMult=function(L,c){let m=_riskMult(L,c);if(hasT(L,'longev')&&BA(L)>50)m*=.8;if(hasT(L,'frail')&&L.age<10)m*=1.3;return m;};
 
 // --- wishes: picked at 18 and again at 30; fulfilling one is a big moment
 const WISHES={
@@ -2246,7 +2248,7 @@ const XROOTS=[['五灵根',.35],['四灵根',.5],['三灵根',.8],['双灵根',1
 const XGONG=[['吐纳法',1],['青木长生功',1.3],['玄水真经',1.7],['紫霄雷典',2.3]];
 const XSIDE={tcm:['开中医诊所',.6,'给人号脉、扎针，一摸就知道病在哪儿'],fengshui:['做风水先生',.5,'看房子、看坟地，你是真的看得见“气”'],coach:['当武术教练',.35,'教一群孩子扎马步'],guard:['给富豪当保镖',.9,'没人知道你一个人能打二十个'],stream:['开直播展示“功夫”',.7,'流量很大，也很危险'],antique:['在古玩市场鉴宝',.8,'真东西会发光，只有你看得见']};
 const xrName=X=>X.realm===1?`炼气${'一二三四五六七八九'[X.layer-1]}层`:XR[X.realm]+(X.realm?'期':'');
-const xNeed=X=>X.realm===0?10:X.realm===1?Math.round(12*Math.pow(1.2,X.layer-1)):Math.round(300*Math.pow(4.5,X.realm-1));
+const xNeed=X=>X.realm===0?10:X.realm===1?Math.round(12*Math.pow(1.2,X.layer-1)):Math.round(300*Math.pow(6,X.realm-1));
 let LINGQI=1; // 灵气复苏之后变大
 function lingqi(L){return yearOf(L)>=2060?1.8:1;}
 function xLog(L,t,k){log(L,t,k||'era');}
@@ -2279,7 +2281,7 @@ function evXHeart(L){const lost=[L.father.alive?null:'父亲',L.mother.alive?nul
 const XEVS=[
  {c:L=>L.xian.realm>=1&&!L.xian.side&&L.age>=18,w:1.2,b:(L,c)=>{const ks=Object.keys(XSIDE).sort(()=>rnd()-.5).slice(0,3);return{title:'一门副业',text:'修行要花钱：药材、玉石、清静的地方。你身上的本事，能换钱。',opts:[...ks.map(k=>({t:XSIDE[k][0],d:XSIDE[k][2],w:1,f:L=>{L.xian.side=k;xLog(L,`你开始${XSIDE[k][0].replace(/^开|^做|^当|^给|^在/,'')}。`,'work');}})),{t:'不用这身本事挣钱',w:.5,f:L=>{L.xian.side='none';}}]};}},
  {c:L=>L.xian.realm>=1&&L.money.liq>c0(L).g*.3,w:1,b:(L,c)=>({title:'黑市灵材',text:`有人在地下市场卖“三百年野山参”和一块据说是陨石的玉，要价 ${fmtMoney(c.g*.3)}。`,opts:[{t:'买',w:1,f:L=>{L.money.liq-=c.g*.3;if(rnd()<.5){L.xian.exp+=xNeed(L.xian)*.4;xLog(L,'是真东西。你炼化了它，修为大进。');}else log(L,'是假货。你被骗了。','money');}},{t:'不买',w:1,f:L=>{}}]})},
- {c:L=>L.xian.realm>=1&&L.xian.pa<L.age-8,w:1.2,b:(L,c)=>({title:'你怎么不老',text:`同学聚会上，大家都老了，只有你还像 ${Math.round(L.xian.pa)} 岁。有人半开玩笑地问你是不是打了什么针。`,opts:[{t:'说是保养得好',w:1.2,f:L=>{L.xian.exposed+=.5;}},{t:'以后少见老朋友',w:.8,f:L=>{bump(L,'social',-8);}},{t:'换一座城市生活',d:'人际重新开始',w:.5,f:L=>{bump(L,'social',-15);L.xian.exposed=Math.max(0,L.xian.exposed-2);xLog(L,'你搬去了一座没有人认识你的城市。','world');}}]})},
+ {c:L=>L.xian.realm>=1&&L.xian.pa<L.age-8&&L.age<95,w:1.2,b:(L,c)=>({title:'你怎么不老',text:`同学聚会上，大家都老了，只有你还像 ${Math.round(L.xian.pa)} 岁。有人半开玩笑地问你是不是打了什么针。`,opts:[{t:'说是保养得好',w:1.2,f:L=>{L.xian.exposed+=.5;}},{t:'以后少见老朋友',w:.8,f:L=>{bump(L,'social',-8);}},{t:'换一座城市生活',d:'人际重新开始',w:.5,f:L=>{bump(L,'social',-15);L.xian.exposed=Math.max(0,L.xian.exposed-2);xLog(L,'你搬去了一座没有人认识你的城市。','world');}}]})},
  {c:L=>L.xian.realm>=1&&L.partner&&L.partner.alive&&!L.partner.xian,w:.8,b:(L,c)=>{const P=L.partner;return{title:'要不要告诉TA',text:`${P.name}越来越老了，而你几乎没变。TA开始害怕，问你是不是有事瞒着TA。`,opts:[{t:'告诉TA真相，带TA一起修行',d:'TA不一定有灵根',w:1,f:L=>{if(rnd()<.45){P.xian=1;P.pa=P.age;P.rel=clamp(P.rel+15,0,100);xLog(L,`${P.name}也有灵根。从此你们一起修行，TA老得也慢了。`,'love');}else{P.rel=clamp(P.rel+5,0,100);log(L,`${P.name}没有灵根。TA抱着你哭了很久，说：“那你要好好的。”`,'love');}}},{t:'瞒着',w:1,f:L=>{P.rel=clamp(P.rel-10,0,100);}}]};}},
  {c:L=>L.xian.realm>=1&&L.xian.exposed>=3&&!L.flags.bureau,w:1.5,b:(L,c)=>{L.flags.bureau=1;return{title:'特殊事务局',text:'一个穿着普通夹克的中年人在你家楼下等你：“我们注意你很久了。别紧张，像你这样的人，不止你一个。”',opts:[{t:'加入他们',d:'有编制，工资高，任务危险',w:1,f:L=>{L.job={t:'特殊事务局',ck:null,lvl:1,yrs:0,z:.6,own:null,hi:true};L.formal=true;xLog(L,'你成了特殊事务局的外勤人员。档案上写的是“某研究所研究员”。','work');}},{t:'拒绝，保证不惹事',w:1,f:L=>{L.xian.exposed=1;xLog(L,'他们留下一个电话号码就走了。你知道，从此有人在看着你。');}},{t:'连夜离开这座城市',w:.4,f:L=>{bump(L,'social',-15);L.xian.exposed=0;if(L.job&&!L.job.own)L.job=null;}}]};}},
  {c:L=>L.xian.realm>=1&&L.job&&L.job.t==='特殊事务局',w:1,b:(L,c)=>({title:'外勤任务',text:pick(['城郊连续失踪了三个人，现场有一种腥甜的气味。','一座古墓被盗了，盗洞里有烧焦的符纸。','网上一个“大师”在用邪术骗老人的养老钱。']),opts:[{t:'出任务',w:1,f:L=>{const p=.55+L.xian.realm*.1;if(rnd()<p){bump(L,'happy',5);L.job.z+=.05;xLog(L,'任务完成了。新闻里只说是“警方破获一起案件”。','work');}else if(rnd()<.15){die(L,'因公殉职（档案里写的是“意外”）');}else{L.st.health=clamp(L.st.health-25,1,100);log(L,'你受了重伤，躺了好几个月。','health');}}}]})},
@@ -2317,7 +2319,7 @@ function evXTrib(L){return{title:'天劫',text:'渡劫期圆满。城市上空�
 const _careerX=career;
 career=function(L,c){_careerX(L,c);if(L.xian)xianTick(L,c);};
 const _qPersX=qPers;
-qPers=function(L,c){const X=L.xian;if(!X||X.realm<1)return _qPersX(L,c);const pa=Math.round(X.pa);if(pa>=110)return 1;const qb=table(L.cur,L.sex,sYear(L)).q[Math.min(110,pa)];return 1-Math.pow(1-qb,riskMult(L,c)*(X.realm>=2?.3:1));};
+qPers=function(L,c){const X=L.xian;if(!X||X.realm<1)return _qPersX(L,c);const pa=Math.round(X.pa);if(pa>=110)return 1;const qb=table(L.cur,L.sex,sYear(L)).q[Math.min(110,pa)];return 1-Math.pow(1-qb,riskMult(L,c)*(X.realm>=2?.6:1));};
 const _causeOfX=causeOf;
 causeOf=function(L,c){const X=L.xian;if(X&&X.realm>=1&&X.pa>=80)return X.realm>=2?'寿元耗尽，坐化':'寿终正寝（修行让你多活了好些年）';return _causeOfX(L,c);};
 const _expHX=expH;
@@ -2339,7 +2341,10 @@ findJob=function(L,c){if(L.xian&&L.xian.mode==='mountain')return;return _findJob
 const _evIllX=evIll;
 evIll=function(L,c){const X=L.xian;if(X&&X.realm>=1&&rnd()<(X.realm>=2?.92:.5))return{skip:1,t:X.realm>=2?'你感到一阵不适，运转了几个周天，就好了。':'你病了一场，靠着吐纳，比别人好得快。'};return _evIllX(L,c);};
 const _queueX=queue;
-queue=function(L,ev){if(ev&&ev.skip){if(ev.t)log(L,ev.t,'health');return;}return _queueX(L,ev);};
+queue=function(L,ev){if(ev&&ev.skip){if(ev.t)log(L,ev.t,'health');return;}
+  // a long-lived cultivator shouldn't meet the same ordinary event every year
+  if(L.xian&&ev&&ev.title&&!/冲击|天劫|心魔|测灵根|怎么修|晋升|找工作/.test(ev.title)){const S=L.xian.seen=L.xian.seen||{};if(S[ev.title]!=null&&L.age-S[ev.title]<15)return;S[ev.title]=L.age;}
+  return _queueX(L,ev);};
 const _causeOfX2=causeOf;
 causeOf=function(L,c){const X=L.xian;if(X&&X.realm>=2&&X.pa<80)return pick(['闭关时出了岔子','与人斗法受了重伤，没能挺过去','一场谁也说不清的意外']);return _causeOfX2(L,c);};
 const _summarizeX=summarize;
@@ -2423,7 +2428,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.1.1',APP_DATE='2026-10-19';
+const APP_VER='3.1.2',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
