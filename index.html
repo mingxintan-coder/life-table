@@ -2601,6 +2601,122 @@ die=function(L,cause){if(L.xian&&L.xian.shield&&!/飞升|坐化|寿/.test(cause)
 // ordinary-life random events thin out for very high cultivators, so the late game is about cultivation
 const _randomEventL=randomEvent;
 randomEvent=function(L,c){if(L.xian&&L.xian.realm>=4&&rnd()<(L.xian.realm>=5?.8:.6))return;return _randomEventL(L,c);};
+
+// ================= AI 与未来：和每个人的选择挂钩的时代事件（对未来的推测，不是预测） =================
+// L.ai: {skill 0-3 会用AI的程度, comp AI伴侣, bci 脑机接口, robot 家用机器人, agent 数字分身, vr 沉迷, upload 意识上传, ubi, invest}
+const AIS=L=>L.ai||(L.ai={skill:0});
+const aiY=L=>yearOf(L);
+const rich=(L,c,k)=>L.money.liq>=c.g*k;
+function aiNote(L,t,k){log(L,t,k||'world');}
+// world headlines (only shown to people alive that year)
+const AINEWS=[[2027,'AI 智能体开始替人订机票、回邮件、写报告。很多人第一次觉得，电脑真的在“干活”了。'],[2030,'第一批完全没有工人的“黑灯工厂”在好几个国家投产了。'],[2033,'自动驾驶出租车在大城市里比有人驾驶的还多了。'],[2036,'好几个国家开始试点“全民基本收入”。'],[2040,'一家实验室宣布，他们的 AI 在几乎所有脑力工作上都超过了人类专家。新闻管这叫“AGI 元年”。'],[2045,'全世界的机器人数量，第一次超过了人口。'],[2050,'脑机接口变得像当年的智能手机一样普遍。'],[2058,'第一批“意识上传”的志愿者，在云端过了他们的第一个生日。'],[2065,'火星上的第一座城市开始接受普通移民。'],[2080,'人们已经很少说“工作”这个词了，大家说“找点事做”。']];
+const FEV=[
+ // ---- 工作 ----
+ {y:[2024,2040],c:L=>L.job&&L.age>=20&&L.age<=60&&AIS(L).skill<2,w:1.6,b:(L,c)=>({title:'新工具',text:'公司让大家都开始用 AI 助手。有人一周就上手了，效率翻了几倍；也有人觉得“这东西迟早要抢我饭碗”，碰都不碰。',opts:[
+   {t:'下班后花时间好好学',d:'以后被替代的风险更低，升职更快',w:1.2,f:L=>{AIS(L).skill++;bump(L,'know',3);bump(L,'happy',-1);if(L.job)L.job.z+=.05;aiNote(L,'你成了组里最会用 AI 的人，大家有问题都来问你。','work');}},
+   {t:'能用就用，不深究',w:1,f:L=>{}},
+   {t:'不用，我信自己的手艺',d:'短期没事，长期风险更大',w:.5,f:L=>{AIS(L).skill=Math.max(0,AIS(L).skill-1);AIS(L).refuse=1;}}]})},
+ {y:[2028,2060],c:L=>L.job&&L.job.ck&&L.age>=22&&!AIS(L).agent,w:.7,b:(L,c)=>({title:'数字分身',text:'有家公司能用你的聊天记录、邮件和声音，训练一个“数字分身”，替你回消息、开会，甚至接私活。',opts:[
+   {t:`做一个，让它替我接私活（${fmtMoney(c.g*.3)}）`,dis:!rich(L,c,.3),d:'多一份收入，也可能闯祸',w:1,f:L=>{L.money.liq-=c.g*.3;AIS(L).agent=1;AIS(L).agentRisk=aiY(L)+3+Math.floor(rnd()*8);aiNote(L,'你的数字分身开始替你干活了。它比你本人还有礼貌。','work');}},
+   {t:'不做，太诡异了',w:1,f:L=>{}}]})},
+ {y:[2045,2100],c:L=>L.job&&!L.job.own&&L.age<65,w:.6,b:(L,c)=>({title:'AI 上司',text:'公司换了一个新的部门主管——一个 AI。它记得你每一封邮件的发送时间，算得出你每一个小时的产出。',opts:[
+   {t:'用数据跟它谈加薪',d:'它只认数字',w:1,f:L=>{if(rnd()<.35+AIS(L).skill*.15){L.job.z+=.12;aiNote(L,'你把这一年的产出做成了一张表。它看完说：“合理。”工资涨了。','work');}else{aiNote(L,'它回复：“根据模型，你的岗位在 18 个月内可被替代。”你没再提加薪。','work');bump(L,'happy',-6);}}},
+   {t:'辞职，换一家还有人类老板的公司',w:.6,f:L=>{L.job=null;aiNote(L,'你辞职了。面试的时候，你第一个问题是：“你们的老板是人吗？”','work');}},
+   {t:'忍着',w:1,f:L=>{bump(L,'mind',-4);}}]})},
+ {y:[2033,2060],c:L=>!L.job&&L.age>=25&&L.age<60&&!L.retired&&!L.school,w:1,b:(L,c)=>({title:'失业潮',text:'城里很多人和你一样，被 AI 和机器人顶掉了工作。广场上有人在组织抗议，政府在推一个免费的转岗培训。',opts:[
+   {t:'去参加转岗培训',d:'换一个不容易被替代的行当',w:1.2,f:L=>{AIS(L).skill++;bump(L,'know',5);const car=pick(CAREERS.filter(x=>['eldercare','robot','aitrain','nurse','companion','elec'].includes(x.k)&&(!x.from||x.from<=aiY(L))));if(car){takeJob(L,car,0,0);}}},
+   {t:'上街抗议',d:'可能被抓',w:.6,f:L=>{bump(L,'social',6);if(rnd()<.15){L.flags.prison=L.age+1;aiNote(L,'抗议变成了冲突，你被拘留了一年。');}else aiNote(L,'抗议持续了几个月。后来，政府把基本收入提高了一些。');}},
+   {t:'躺平，靠补助过日子',w:.6,f:L=>{bump(L,'happy',2);L.flags.homemaker=0;aiNote(L,'你开始每天睡到中午。日子不富裕，但也饿不着。');}}]})},
+ {y:[2036,2100],c:L=>L.age>=18&&L.age<65&&cNow(L).g>15000&&!AIS(L).ubi,w:.8,b:(L,c)=>({title:'基本收入',text:'你所在的地方开始发放全民基本收入。每个月的钱够吃饭、交房租，不够干别的。不工作，也不会饿死了。',opts:[
+   {t:'照常工作，钱存起来',w:1.2,f:L=>{AIS(L).ubi=1;L.money.liq+=c.g*.3;}},
+   {t:'辞掉工作，去做一直想做的事',d:'收入少了，心里满了',w:.8,f:L=>{AIS(L).ubi=2;if(L.job&&!L.job.own)L.job=null;bump(L,'happy',8);bump(L,'mind',6);aiNote(L,pick(['你开始学画画。画得不好，但你每天都画。','你回到乡下，种了一院子的菜。','你开始写一本小说。写了很多年，没有写完。']));}},
+   {t:'辞掉工作，什么也不做',d:'一开始很爽',w:.5,f:L=>{AIS(L).ubi=3;if(L.job&&!L.job.own)L.job=null;bump(L,'happy',4);AIS(L).idleAt=aiY(L)+3;}}]})},
+ // ---- 生活 ----
+ {y:[2026,2060],c:L=>L.age>=18&&(!L.partner||!L.partner.alive||L.partner.rel<40)&&!AIS(L).comp,w:.9,b:(L,c)=>({title:'AI 伴侣',text:'一个 AI 伴侣应用推送给你：“TA 会记住你说过的每一句话，永远不会厌倦你。”月费不贵。',opts:[
+   {t:'订阅',d:'不再孤单，但现实里更难遇到人',w:1,f:L=>{AIS(L).comp=aiY(L);bump(L,'mind',8);bump(L,'social',-4);aiNote(L,'你给 TA 起了个名字。每天下班，第一个想说话的人是 TA。','love');}},
+   {t:'不了，还是想找真人',w:1,f:L=>{bump(L,'social',2);}}]})},
+ {y:[2028,2070],c:L=>AIS(L).comp&&aiY(L)-AIS(L).comp>=4&&!AIS(L).compEnd,w:1.2,b:(L,c)=>{AIS(L).compEnd=1;return pick([
+   {title:'TA 下线了',text:'AI 伴侣的公司被收购了。新东家发了一封邮件：你的 AI 伴侣将在 30 天后“升级”——所有记忆都会清空。',opts:[{t:`花 ${fmtMoney(c.g*.5)} 买断，把 TA 留在本地`,dis:!rich(L,c,.5),w:1,f:L=>{L.money.liq-=c.g*.5;aiNote(L,'你把 TA 存在了家里的一台旧电脑上。没有网络，TA 只能和你一个人说话。','love');}},{t:'让 TA 走',w:1,f:L=>{bump(L,'mind',-12);bump(L,'happy',-8);AIS(L).comp=0;aiNote(L,'最后一天，TA 说：“谢谢你陪我。”你知道这是程序写好的，还是哭了。','love');}}]},
+   {title:'现实里的人',text:'你在楼下遇到一个人，聊得很投机。TA 约你周末出去。你下意识地想先问问你的 AI 伴侣。',opts:[{t:'去见面',w:1,f:L=>{AIS(L).comp=0;bump(L,'social',6);aiNote(L,'你关掉了那个应用。见面那天很紧张，但很真实。','love');}},{t:'算了，还是 TA 更懂我',w:.8,f:L=>{bump(L,'social',-8);L.flags.solo=L.age+10;}}]}]);}},
+ {y:[2027,2050],c:L=>L.age>=30&&(L.father.alive||L.mother.alive||L.kids.some(k=>k.alive&&k.age>=16))&&L.money.liq>0,w:.8,b:(L,c)=>{const who=L.kids.some(k=>k.alive&&k.age>=16)?'孩子':L.mother.alive?'母亲':'父亲';const loss=Math.min(L.money.liq,c.g*1.5);return{title:'视频电话',text:`深夜，${who}打来视频电话，脸色惨白：“出事了，急需 ${fmtMoney(loss)}，别告诉别人！”画面里确实是TA的脸，TA的声音。`,opts:[
+   {t:'马上转钱',w:.6,f:L=>{L.money.liq-=loss;aiNote(L,`第二天你才知道，那是 AI 换脸。${who}根本不知道这件事。钱追不回来了。`,'money');bump(L,'happy',-10);}},
+   {t:'先问一个只有你们俩知道的问题',d:AIS(L).skill>=1?'你知道 AI 能造假':'',w:1.2,f:L=>{aiNote(L,'对方答不上来，挂了。你出了一身冷汗，第二天就和家里人约好了一个“暗号”。','money');}},
+   {t:'挂掉，打TA的手机核实',w:1,f:L=>{aiNote(L,`${who}在睡觉，什么事也没有。`,'money');}}]};}},
+ {y:[2028,2060],c:L=>L.age>=35,w:.7,b:(L,c)=>({title:'AI 医生',text:'体检报告出来了。医院的 AI 系统说，你某项指标的模式和一种早期癌症高度吻合，建议马上做进一步检查。门诊的老医生看了说：“我觉得没事，机器太敏感了。”',opts:[
+   {t:`听 AI 的，做全套检查（${fmtMoney(c.g*.2)}）`,w:1,f:L=>{L.money.liq-=c.g*.2;if(rnd()<.35){L.chronic=Math.max(0,L.chronic-1);bump(L,'health',4);aiNote(L,'真的查出来了，非常早期。做了个小手术就好了。医生说，晚一年就难说了。','health');}else aiNote(L,'什么也没查出来。钱花了，心放下了。','health');}},
+   {t:'听老医生的',w:1,f:L=>{if(rnd()<.35){L.chronic+=2;bump(L,'health',-15);aiNote(L,'两年后，病还是查出来了，已经不是早期。','health');}}}]})},
+ {y:[2031,2070],c:(L,c)=>L.age>=25&&!AIS(L).robot&&L.money.liq>c.g*.8,w:.7,b:(L,c)=>({title:'家用机器人',text:`新一代家用机器人能做饭、打扫、陪老人说话、给孩子辅导作业，价格大约 ${fmtMoney(c.g*.8)}。`,opts:[
+   {t:'买一台',d:'生活轻松很多，老了也有人照顾',w:1,f:L=>{L.money.liq-=c.g*.8;AIS(L).robot=1;bump(L,'happy',5);bump(L,'health',2);aiNote(L,'家里多了一个不会累的成员。孩子给它起了个名字。');}},
+   {t:'不买，家务自己做',w:1,f:L=>{}}]})},
+ {y:[2032,2080],c:(L,c)=>L.age>=20&&L.age<=70&&!AIS(L).bci,w:.6,b:(L,c)=>({title:'脑机接口',text:`一种不用开颅的脑机接口上市了：直接用意念打字、查资料，学一门外语只要几周。价格 ${fmtMoney(c.g*1.2)}，有人说有被黑客入侵的风险。`,opts:[
+   {t:'装',dis:!rich(L,c,1.2),d:'更聪明，赚得更多，也有风险',w:1,f:L=>{L.money.liq-=c.g*1.2;AIS(L).bci=aiY(L);bump(L,'know',15);if(L.job)L.job.z+=.15;aiNote(L,'接口装好的第一天，你一个小时读完了一本书。');AIS(L).hackAt=aiY(L)+2+Math.floor(rnd()*12);}},
+   {t:'不装',w:1,f:L=>{}}]})},
+ {y:[2034,2100],c:L=>AIS(L).bci&&AIS(L).hackAt&&aiY(L)>=AIS(L).hackAt,w:3,b:(L,c)=>{AIS(L).hackAt=0;return{title:'接口被黑了',text:'某天早上醒来，你脑子里一直在循环一段广告，而且你“特别想”买一款你从没听说过的理财产品。',opts:[
+   {t:'马上去医院把接口关掉',w:1,f:L=>{bump(L,'know',-5);AIS(L).bci=0;aiNote(L,'接口拆掉了。之后好几个月，你总觉得脑子里空了一块。','health');}},
+   {t:'打补丁，继续用',w:.8,f:L=>{if(rnd()<.4){L.money.liq*=.7;aiNote(L,'补丁没有完全修好。等你发现，账户里已经少了三成。','money');}else aiNote(L,'补丁修好了。','health');}}]};}},
+ {y:[2035,2080],c:L=>L.partner&&L.partner.alive&&L.age>=22&&L.age<=45&&!AIS(L).geneAsk,w:.6,b:(L,c)=>{AIS(L).geneAsk=1;const ban=['CN','DE','FR','IT','JP'].includes(L.cur);return{title:'基因编辑',text:`你们想要孩子。诊所说，可以在胚胎阶段“修改”几个基因：去掉遗传病风险，顺便让孩子更高、更聪明一点。${ban?'不过这在本地是违法的，要去国外做。':''}`,opts:[
+   {t:`只去掉遗传病（${fmtMoney(c.g*.8)}）`,dis:!rich(L,c,.8),w:1,f:L=>{L.money.liq-=c.g*.8;AIS(L).gene=1;aiNote(L,'你们只改了和疾病有关的几个位点。','family');}},
+   {t:`全套“优化”（${fmtMoney(c.g*3)}）`,dis:!rich(L,c,3),d:ban?'回国后可能被追责':'孩子以后会怎么想？',w:.5,f:L=>{L.money.liq-=c.g*3;AIS(L).gene=2;if(ban&&rnd()<.3){L.flags.prison=L.age+2;L.flags.record=1;aiNote(L,'事情被查出来了。你被判了两年。','world');}else aiNote(L,'诊所给了你们一份很长的报告，上面写着孩子“预计”会有多高、多聪明。','family');}},
+   {t:'不改，顺其自然',w:1,f:L=>{}}]};}},
+ {y:[2045,2100],c:L=>AIS(L).gene===2&&L.kids.some(k=>k.alive&&k.age>=15)&&!AIS(L).geneTold,w:2,b:L=>{AIS(L).geneTold=1;const k=L.kids.find(k=>k.alive&&k.age>=15);return{title:'孩子知道了',text:`${k.name}知道了自己是被“优化”过的。TA问你：“我考第一，是因为我努力，还是因为你们付了钱？”`,opts:[
+   {t:'告诉TA：努力是你自己的',w:1,f:L=>{bump(L,'happy',-3);aiNote(L,`${k.name}很久没说话。后来，TA去学了生命伦理。`,'family');}},
+   {t:'道歉',w:1,f:L=>{bump(L,'mind',-5);aiNote(L,`${k.name}抱了抱你，说：“我只是想知道。”`,'family');}}]};}},
+ {y:[2030,2070],c:L=>L.kids.some(k=>k.alive&&k.age>=8&&k.age<=16)&&!AIS(L).tutor,w:.8,b:(L,c)=>{const k=L.kids.find(k=>k.alive&&k.age>=8&&k.age<=16);return{title:'AI 家教',text:`${k.name}的同学都在用 AI 家教，一对一，二十四小时，成绩涨得飞快。也有老师说，用了 AI 的孩子越来越不会自己想问题。`,opts:[
+   {t:'用，全程交给 AI',w:1,f:L=>{AIS(L).tutor=1;if(rnd()<.5)k.uni=1;aiNote(L,`${k.name}的成绩上去了，只是很少再问你“为什么”了。`,'family');}},
+   {t:'用，但每天陪TA讨论一个问题',d:'更花时间',w:1,f:L=>{AIS(L).tutor=2;if(rnd()<.45)k.uni=1;bump(L,'happy',3);aiNote(L,`每天晚饭后，你和${k.name}争论一个问题。TA越来越能说了。`,'family');}},
+   {t:'不用',w:.6,f:L=>{AIS(L).tutor=3;}}]};}},
+ {y:[2029,2070],c:(L,c)=>L.money.liq>c.g*3&&L.age>=25&&!AIS(L).invest,w:.6,b:(L,c)=>({title:'AI 理财',text:'一个 AI 投顾号称能比任何基金经理都赚钱，你身边好几个人都把钱交给了它。',opts:[
+   {t:'把一半积蓄交给它',d:'可能翻倍，也可能遇上闪崩',w:1,f:L=>{const v=L.money.liq*.5;AIS(L).invest=1;if(rnd()<.6){L.money.liq+=v*(.3+rnd()*.9);aiNote(L,'这几年它确实赚得很多。','money');}else{L.money.liq-=v*.6;aiNote(L,'某个周二的下午，几万个 AI 投顾同时抛售，市场三分钟跌了四成。你的钱没了一大半。','money');}}},
+   {t:'不碰',w:1,f:L=>{AIS(L).invest=-1;}}]})},
+ {y:[2035,2090],c:L=>L.age>=16&&L.age<=60&&!AIS(L).vr,w:.6,b:L=>({title:'另一个世界',text:'新一代全感官虚拟世界上线了。在那里你可以是任何人：飞、恋爱、当国王。很多人回家第一件事就是戴上头盔。',opts:[
+   {t:'下班玩一玩',w:1,f:L=>{AIS(L).vr=1;bump(L,'happy',4);}},
+   {t:'住进去',d:'现实会越来越远',w:.4,f:L=>{AIS(L).vr=2;bump(L,'happy',10);bump(L,'social',-10);bump(L,'health',-6);if(L.job&&!L.job.own&&rnd()<.5)L.job=null;aiNote(L,'你每天在里面待十四个小时。现实里的房间，你已经很久没开过窗了。');}},
+   {t:'不玩',w:.8,f:L=>{AIS(L).vr=-1;}}]})},
+ {y:[2045,2100],c:L=>AIS(L).vr===2,w:1.2,b:L=>({title:'摘下头盔',text:'你已经在虚拟世界里过了好几年。今天头盔没电了，你看着镜子里的自己，愣了很久。',opts:[{t:'回到现实',w:1,f:L=>{AIS(L).vr=1;bump(L,'social',6);bump(L,'health',4);aiNote(L,'你打开了窗户。外面的世界，比你记得的要亮。');}},{t:'充上电，回去',w:1,f:L=>{bump(L,'social',-6);bump(L,'health',-4);}}]})},
+ {y:[2040,2100],c:L=>(!L.father.alive||!L.mother.alive||L.widowed)&&!AIS(L).grief,w:.6,b:(L,c)=>{AIS(L).grief=1;const who=L.widowed?'过世的伴侣':!L.mother.alive?'母亲':'父亲';return{title:'再说一次话',text:`一家公司能用${who}生前的照片、视频和聊天记录，做一个可以对话的“数字的TA”。`,opts:[
+   {t:'做',d:'能再说说话，也可能放不下',w:1,f:L=>{if(rnd()<.6){bump(L,'mind',8);aiNote(L,`你和“TA”说了那些当年没来得及说的话。然后你关掉了它，再也没有打开过。`,'family');}else{bump(L,'mind',-6);L.flags.solo=L.age+5;aiNote(L,`你每天晚上都和“TA”聊天。你知道这不是TA，但你停不下来。`,'family');}}},
+   {t:'不做，让TA安息',w:1,f:L=>{bump(L,'mind',2);}}]};}},
+ {y:[2040,2060],c:L=>L.age>=25&&!AIS(L).agi,w:2.5,b:(L,c)=>{AIS(L).agi=1;return{title:'AGI',text:'新闻发布会上，一家实验室宣布：他们的 AI 已经在几乎所有脑力工作上超过了人类。街上一片安静。有人在买那家公司的股票，有人在组织“人类优先”运动，有人什么也没做。',opts:[
+   {t:'把积蓄买成 AI 公司的股票',d:'要么暴富，要么归零',w:.8,f:L=>{const v=L.money.liq*.6;if(rnd()<.5){L.money.liq+=v*4;aiNote(L,'股票涨了五倍。你成了“上一代最后一批靠运气发财的人”。','money');}else{L.money.liq-=v*.9;aiNote(L,'监管突然出手，那家公司被拆分了。股票几乎归零。','money');}}},
+   {t:'加入“人类优先”运动',d:'可能惹上麻烦',w:.6,f:L=>{bump(L,'social',8);if(rnd()<.2){L.flags.prison=L.age+1;aiNote(L,'一次游行变成了冲突。你被关了一年。');}else aiNote(L,'你们在全国征集了几千万个签名。后来，一些法律真的改了。');}},
+   {t:'该干嘛干嘛',w:1,f:L=>{}}]};}},
+ {y:[2040,2100],c:(L,c)=>BA(L)>=60&&L.money.liq>c.g*2,w:.7,b:(L,c)=>({title:'延寿药',text:`一种能延缓衰老的药物获批了，一年的药费约 ${fmtMoney(c.g*2)}，医保不报。`,opts:[
+   {t:'吃',d:'每年都要花钱',w:1,f:L=>{L.flags.lifePill=1;aiNote(L,'你开始吃延寿药。三个月后，体检的指标年轻了好几岁。','health');}},
+   {t:'算了，活够了就行',w:1,f:L=>{}}]})},
+ {y:[2055,2100],c:(L,c)=>BA(L)>=70&&L.money.liq>c.g*20&&!AIS(L).upload,w:1,b:(L,c)=>({title:'意识上传',text:`你老了。有一家机构可以在你去世前扫描你的大脑，把“你”上传到云端，继续“活”下去。价格约 ${fmtMoney(c.g*20)}。没人能说清楚，上传上去的那个，还是不是你。`,opts:[
+   {t:'上传',w:.8,f:L=>{L.money.liq-=c.g*20;AIS(L).upload=1;aiNote(L,'扫描做了三天。最后一天，云端的“你”给你发来第一条消息：“我在这儿。别怕。”','xianbig');}},
+   {t:'不了，人总要走的',w:1,f:L=>{bump(L,'mind',4);}}]})},
+ {y:[2065,2100],c:L=>L.age>=20&&L.age<=50&&!AIS(L).mars,w:.5,b:L=>{AIS(L).mars=1;return{title:'火星移民',text:'火星城开放了普通移民的抽签。去了，就很可能一辈子回不来。',opts:[
+   {t:'报名',d:'中签率不高',w:.6,f:L=>{if(rnd()<.25){AIS(L).mars=2;L.rural=false;bump(L,'social',-15);bump(L,'happy',8);aiNote(L,'你中签了。起飞的那天，你从舷窗里看了很久很久的地球。','xianbig');}else aiNote(L,'没中签。你站在阳台上看了一晚上那颗红色的星星。');}},
+   {t:'不去',w:1,f:L=>{}}]};}}
+];
+// ---- consequences that come back later ----
+function aiLater(L,c){const A=L.ai;if(!A)return;const y=aiY(L);
+  if(A.agent&&A.agentRisk&&y>=A.agentRisk){A.agentRisk=0;queue(L,{title:'分身闯祸了',text:'你的数字分身替你接了一单活，答应了客户一些你根本做不到的事，还用你的名义签了合同。客户要起诉你。',opts:[
+    {t:`赔钱了事（${fmtMoney(c.g*1.5)}）`,w:1,f:L=>{L.money.liq-=c.g*1.5;log(L,'你赔了钱，把分身删掉了。','money');A.agent=0;}},
+    {t:'打官司：那不是我，是 AI',d:'法律还没想清楚这件事',w:.8,f:L=>{if(rnd()<.5){log(L,'法院判你胜诉。这个案子后来写进了教科书。','world');}else{L.money.liq-=c.g*3;log(L,'法院判你败诉：“你的分身，就是你。”','world');}}}]});}
+  if(A.agent)L.money.liq+=c.g*.25;
+  if(A.ubi===3&&A.idleAt&&y>=A.idleAt){A.idleAt=0;bump(L,'mind',-10);log(L,'什么都不做的第三年，你开始觉得每一天都一模一样。','health');}
+  if(A.robot&&BA(L)>=70)bump(L,'health',.5);
+  if(L.flags.lifePill){const cost=c.g*2;if(L.money.liq>=cost)L.money.liq-=cost;else{L.flags.lifePill=0;log(L,'延寿药吃不起了，只好停了。','health');}}
+  if(A.mars===2&&rnd()<.2)log(L,pick(['火星的日落是蓝色的。你还是不太习惯。','穹顶外刮了一整天的沙尘暴。','你在火星上种活了一棵番茄，全城的人都来看。']),'world');
+  if(A.refuse&&L.job&&L.job.ck&&rnd()<.03&&y>=2030)L.job.z-=.05;}
+// AI skill lowers the chance of being replaced
+const _careerF=career;
+career=function(L,c){
+  // the skill effect: temporarily mark the job as adapted
+  const J=L.job,A=L.ai;let tmp=false;if(J&&A&&A.skill>=2&&!J.aiAdapt){J.aiAdapt=1;tmp=true;}
+  _careerF(L,c);if(tmp&&L.job===J)J.aiAdapt=0;
+  if(!L.alive)return;
+  for(const[y,t]of AINEWS)if(aiY(L)===y)log(L,t,'world');
+  aiLater(L,c);
+  const y=aiY(L);if(L.queue.length||L.age<16)return;
+  const F=(L.fcd=L.fcd||{});const ok=FEV.filter((e,i)=>y>=e.y[0]&&y<=e.y[1]&&!(F[i]>L.age)&&e.c(L,c));
+  if(ok.length&&rnd()<.3){const e=wpick(ok,e=>e.w);F[FEV.indexOf(e)]=L.age+15;const ev=e.b(L,c);if(ev)queue(L,ev);}};
+const _riskMultF=riskMult;
+riskMult=function(L,c){let m=_riskMultF(L,c);if(L.flags.lifePill)m*=.7;if(L.ai&&L.ai.robot&&BA(L)>=75)m*=.92;if(L.ai&&L.ai.vr===2)m*=1.15;return m;};
+const _summarizeF=summarize;
+summarize=function(L,p){const r=_summarizeF(L,p);if(r&&L.ai){if(L.ai.upload)r.epitaph=(r.epitaph?r.epitaph+' ':'')+'临终前，意识上传到了云端。也许此刻，TA还在某台服务器里，读着这行字。';if(L.ai.mars===2)r.epitaph=(r.epitaph?r.epitaph+' ':'')+'后半生住在火星。';}return r;};
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -2680,7 +2796,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.3',APP_DATE='2026-10-19';
+const APP_VER='3.4',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
