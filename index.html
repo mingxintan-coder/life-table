@@ -376,6 +376,7 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .xianpanel .xbar{height:6px;border-radius:3px;background:var(--rule);overflow:hidden;margin:4px 0 6px}
 .xianpanel .xbar i{display:block;height:100%;background:var(--accent)}
 .xianpanel p{margin:2px 0}
+.xianpanel .xwarn{color:var(--bad);font-weight:600}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -2325,7 +2326,7 @@ function xianTick(L,c){const X=L.xian;if(!X||!L.alive)return;
   if(X.mode==='mountain'){bump(L,'social',-1.5);if(rnd()<.25)log(L,pick(['山里下了一场大雪，你在雪里打坐了一夜。','师父今天只说了一句话：“慢一点。”','你在后山的瀑布下练了一整天的功。','观里的老槐树开花了。']),'yr');}
   else if(cult&&rnd()<.25)log(L,pick(['深夜，你在阳台上打坐，城市的灯一盏盏熄了。','你在地铁里闭着眼睛吐纳，没人注意到你。','你把一块玉压在枕头下，睡梦里也在修炼。','楼下的流浪猫总喜欢趴在你打坐的地方。']),'yr');
   if(yearOf(L)===2060&&!L.flags.lq){L.flags.lq=1;xLog(L,'这一年，全世界的人都觉得空气不一样了。新闻里管这叫“灵气复苏”。修行，突然变得容易了很多。','world');}
-  if(!L.queue.length&&rnd()<.3){const ok=XEVS.filter(e=>e.c(L));if(ok.length){const e=wpick(ok,e=>e.w);const ev=e.b(L,c);if(ev)queue(L,ev);}}}
+  if(!L.queue.length&&rnd()<(X.realm>=5?.08:.3)){const ok=XEVS.filter(e=>e.c(L));if(ok.length){const e=wpick(ok,e=>e.w);const ev=e.b(L,c);if(ev)queue(L,ev);}}}
 function evXTrib(L){return{title:'天劫',text:'渡劫期圆满。城市上空的云越压越低，天气预报说今天是晴天。九道雷，熬过去就是飞升。',opts:[{t:'去没人的地方迎劫',w:1,f:L=>{for(let i=1;i<=9;i++){if(rnd()>.86-i*.025+L.st.health*.001+(L.xian.kar||0)*.003){die(L,`倒在了第${'一二三四五六七八九'[i-1]}道天雷之下`);return;}}L.xian.fs=1;die(L,'白日飞升，离开了这个世界');}}]};}
 // ---------- hooks into the life engine ----------
 const _careerX=career;
@@ -2396,7 +2397,7 @@ const XEVS2=[
  {c:L=>L.xian.realm>=1&&!L.xian.art,w:.4,b:L=>{const a=pick([['铜镜','奶奶留下的一面铜镜，照不清人，却能照出“气”'],['旧剑','爷爷压在床底下的一把锈剑，一握就嗡嗡作响'],['葫芦','一只地摊上买来的葫芦，装水永远装不满']]);return{title:'认主',text:`${a[1]}。你滴了一滴血上去，它亮了。`,opts:[{t:'祭炼它',w:1,f:L=>{L.xian.art=a[0];log(L,`你有了第一件法宝：${a[0]}。`,'xianbig');}}]};}},
  {c:L=>L.xian.realm>=1&&!L.xian.group&&L.age>=16,w:.6,b:L=>({title:'修真交流群',text:'一个陌生号码拉你进了一个微信群，群名叫“城南钓鱼爱好者”。第一条消息是：“新来的道友，报一下灵根和境界。”',opts:[{t:'报上去',w:1,f:L=>{L.xian.group=1;bump(L,'social',6);log(L,'原来这座城市里，修行的人不止你一个。','xianbig');}},{t:'退群',w:.4,f:L=>{L.xian.group=-1;}}]})},
  {c:L=>L.xian.group===1&&L.xian.realm>=1,w:.7,b:(L,c)=>({title:'坊市',text:'这个月的坊市在一座废弃的地铁站里。摊位上摆着符纸、丹药、来路不明的法器，收钱用的是转账。',opts:[{t:`买一瓶“培元丹”（${fmtMoney(c.g*.2)}）`,dis:L.money.liq<c.g*.2,w:1,f:L=>{L.money.liq-=c.g*.2;if(rnd()<.7){L.xian.exp+=xNeed(L.xian)*.08;log(L,'丹药是真的，一口下去，丹田里暖了好几天。','xian');}else log(L,'回家一看，是糖丸。','money');}},{t:'摆个摊，卖自己画的符',w:1,f:L=>{L.money.liq+=c.g*.15*(1+L.xian.realm*.5);log(L,'你画的护身符卖光了。','money');}},{t:'只看不买',w:.5,f:L=>{}}]})},
- {c:L=>L.xian.realm>=1&&!(L.xian.retreat>L.age)&&L.focus==='cultivate'&&!(L.xian.planY>L.age),w:2,b:(L,c)=>{L.xian.planY=L.age+3;return{title:'这几年怎么修',text:`你的修为卡在${xrName(L.xian)}。接下来几年，打算怎么修？`,opts:[
+ {c:L=>L.xian.realm>=1&&!(L.xian.retreat>L.age)&&L.focus==='cultivate'&&!(L.xian.planY>L.age),w:2,b:(L,c)=>{L.xian.planY=L.age+(L.xian.realm>=4?20:L.xian.realm>=2?8:3);return{title:'这几年怎么修',text:`你的修为卡在${xrName(L.xian)}。接下来几年，打算怎么修？`,opts:[
    {t:'闭关三年',d:L.job&&!L.job.own?'修为大涨，但多半要辞职；家人会担心':'修为大涨，家人会担心',w:1,f:L=>{L.xian.retreat=L.age+3;L.xian.retreatFrom=L.age+1;if(L.job&&!L.job.own){L.job=null;log(L,'你辞了工作，说要出去散散心。','work');}if(L.partner)L.partner.rel=clamp(L.partner.rel-8,0,100);log(L,'你找了一处没人的地方，开始闭关。','xianbig');}},
    {t:`去名山大川走一走（约 ${fmtMoney(c.g*.3)}）`,d:'修为小涨，可能有奇遇',w:1,f:L=>{L.money.liq-=c.g*.3;L.xian.exp+=xNeed(L.xian)*.06;log(L,pick(['你在昆仑山脚下住了一个月，雪线以上的灵气浓得像雾。','你去了长白山天池，在湖边打坐时，水面上起了一圈一圈的波纹。','你在峨眉山的金顶上看了一次日出，心里有什么东西松开了。']),'xian');if(rnd()<.3&&!L.xian.art)queue(L,XEVS2[4].b(L,c));}},
    {t:'就在城里，一边过日子一边修',w:1,f:L=>{bump(L,'happy',2);}}]};}},
@@ -2444,13 +2445,162 @@ const _xLogOrig=xLog;
 xLog=function(L,t,k){log(L,t,!k||k==='era'?'xian':k);};
 
 function xianHTML2(L){const X=L.xian;if(!X)return'';const n=xNeed(X),pct=Math.min(100,X.exp/n*100);
-  const bits=[X.pet?`灵宠：${XPETS[X.pet.k].n}「${X.pet.name}」`:'',X.ring===2?'戒指里的老前辈':'',X.art?`法宝：${X.art}`:'',X.group===1?'修真交流群':'',X.side&&X.side!=='none'?'副业：'+XSIDE[X.side][0].replace(/^开|^做|^当|^给|^在/,''):''].filter(Boolean);
+  const bits=[X.pet?`灵宠：${XPETS[X.pet.k].n}「${X.pet.name}」`:'',X.ring===2?'戒指里的老前辈':'',X.art?`法宝：${X.art}`:'',X.group===1?'修真交流群':'',X.side&&X.side!=='none'?'副业：'+XSIDE[X.side][0].replace(/^开|^做|^当|^给|^在/,''):'',X.sect2&&!X.sect2.none?`开创${X.sect2.n}（弟子 ${X.sect2.size}，第 ${X.sect2.lv} 等）`:'',X.avatar?'身外化身':'',X.cave?'洞天':'',X.array?`聚灵阵 ${X.array} 层`:'',X.shield?'护身法宝':''].filter(Boolean);
+  const warn=[L.flags.prison>L.age?`服刑中（还剩 ${L.flags.prison-L.age} 年）`:'',X.wanted?'被通缉':'',(X.heat||0)>=3?'官方在查你':(X.heat||0)>=1.5?'有人在留意你':'',X.public?'公开身份的修士':''].filter(Boolean);
   return`<div class="sec xianpanel"><h4>修行 · ${xrName(X)}</h4>
    <div class="xbar"><i style="width:${pct.toFixed(0)}%"></i></div>
    <p class="small">${X.root} · 主修《${XGONG[X.gong][0]}》 · ${X.sect?'师承'+X.sect:'无门无派'}${X.mode==='mountain'?' · 正在山中':''}${X.retreat>L.age?' · 闭关中':''}</p>
    <p class="small">${karTxt(X.kar||0)} · 身体年龄约 ${Math.round(X.pa)} 岁 · 被人注意的程度${X.exposed>=3?'高':X.exposed>=1.5?'中':'低'}</p>
    ${bits.length?`<p class="small">${bits.join(' · ')}</p>`:''}
-   <p class="xs muted">重心设为“修炼”进展更快；在生活里的一些抉择中，你可以动用修为——帮人积功德，谋私沾业力，会影响突破和心魔。</p></div>`;}
+   ${warn.length?`<p class="small xwarn">${warn.join(' · ')}</p>`:''}
+   <p class="xs muted">重心设为“修炼”进展更快；在生活里的一些抉择中，你可以动用修为——帮人积功德，谋私沾业力；用得太张扬会被调查、坐牢甚至被通缉。钱多了，可以去“花钱·投资”里布聚灵阵、买山、拍天材地宝。</p></div>`;}
+
+// ================= 后果、后期玩法、花钱的地方 =================
+// X.heat: 官方的注意（违法、动用法术谋私会涨）；X.exposed: 公众的注意。X.wanted: 被通缉。
+function heat(L,v,why){const X=L.xian;if(!X)return;X.heat=Math.max(0,(X.heat||0)+v);if(why)X.crime=why;}
+// ---------- 1. 选项的后果：给原来“没代价”的修为选项补上风险 ----------
+const XOPT_RISK={'股市暴跌':[2,'insider'],'赌一把':[3,'gamble'],'职场骚扰':[.6,'curse'],'家里的暴力':[1,'assault'],'被裁员了':[.3,''],'失业':[.3,'']};
+const _queueL=queue;
+queue=function(L,ev){const r=_queueL(L,ev);if(L&&L.xian&&ev&&ev.opts&&XOPT_RISK[ev.title]){const o=ev.opts[ev.opts.length-1];if(o&&/^（/.test(o.t)&&!o._r){o._r=1;const f=o.f,[h,cr]=XOPT_RISK[ev.title];o.d=(o.d?o.d+'，':'')+(h>=2?'可能被调查':'有一点风险');o.f=L=>{f(L);heat(L,h,cr);};}}return r;};
+const CRIME={insider:['证监会和经侦','你那次抄底的时间点太准了，像是提前知道消息。他们怀疑你内幕交易。'],gamble:['警方','赌场的监控里，你每一把都赢。有人报了警，说你出千。'],curse:['警方','那个上司出了车祸，家属说出事前你诅咒过他。'],assault:['警方','对方去医院验了伤，报了警。'],kill:['刑警','烂尾楼里发现了一具尸体，监控拍到了你。'],escape:['追逃组','你越狱的事上了内部通报。'],illegal:['市场监管和警方','有人举报你无证行医、卖来路不明的“丹药”。'],'':['警方','有人举报你身上有说不清的事。']};
+function evInvestigate(L,c){const X=L.xian,cr=CRIME[X.crime||'']||CRIME[''],hv=X.heat,yrs=Math.min(10,1+Math.round(hv/2));
+  const pMagic=clamp(.35+X.realm*.08,.1,.9),law=c.g*5;
+  return{title:'被调查',text:`${cr[0]}找上门了。${cr[1]}${hv>=6?'这次事情很大。':''}`,opts:[
+   {t:'配合调查，认罪',d:`可能罚没大半财产，判 ${Math.max(1,yrs-2)}–${yrs} 年`,w:1,f:L=>{L.money.liq*=.4;const n=Math.max(1,yrs-Math.floor(rnd()*3));jail(L,n,`你认了罪，罚没了大半财产，判了 ${n} 年。`);X.heat=0;}},
+   {t:`请最好的律师（${fmtMoney(law)}）`,d:'六成能脱身',dis:L.money.liq<law,w:1,f:L=>{L.money.liq-=law;if(rnd()<.6){X.heat=Math.max(0,X.heat-3);log(L,'律师团队打了一年官司，证据不足，不予起诉。','world');}else{jail(L,yrs,`官司输了，判了 ${yrs} 年。`);X.heat=0;}}},
+   {t:'用法术抹掉证据和记忆',d:`把握约 ${Math.round(pMagic*100)}%，失败就是重罪`,w:.6,f:L=>{if(rnd()<pMagic){X.heat=Math.max(0,X.heat-2);addKar(L,-3,'卷宗里的那几页不见了，办案的人也想不起你是谁。');}else{X.heat+=3;X.wanted=1;X.crime='escape';if(L.job&&!L.job.own)L.job=null;log(L,'法术被一个戴着护身符的老刑警看破了。你连夜逃走，从此被通缉。','world');}}},
+   {t:'跑路出国',d:'丢下工作和熟人，被通缉',w:.4,f:L=>{const k=pick(RICH.filter(k=>k!==L.cur&&CM[k]));emigrate(L,k,'你连夜坐上了出境的船');X.wanted=1;X.heat=Math.max(2,X.heat-2);if(L.job&&!L.job.own)L.job=null;if(L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel-20,0,100);}}]};}
+function jail(L,n,msg){L.flags.prison=L.age+n;if(L.job&&!L.job.own)L.job=null;L.flags.record=1;log(L,msg,'world');bump(L,'happy',-12);}
+const LATEX=[
+ // ---- consequences ----
+ {cd:3,c:L=>(L.xian.heat||0)>=3&&!(L.flags.prison>L.age),w:L=>L.xian.heat/2,b:evInvestigate},
+ {cd:4,c:L=>L.xian.wanted&&!(L.flags.prison>L.age),w:()=>1,b:(L,c)=>({title:'追捕',text:pick(['你在出租屋楼下看见了两个便衣。','一张印着你照片的协查通报贴在了地铁站。','你常去的那家面馆老板，看你的眼神不对了。']),opts:[
+   {t:'换个城市躲起来',w:1.2,f:L=>{bump(L,'social',-10);bump(L,'happy',-5);if(rnd()<.3)log(L,'你又搬家了。这是第几次，你自己也记不清。','world');}},
+   {t:'自首',d:'坐几年牢，从此不用再躲',w:.5,f:L=>{L.xian.wanted=0;L.xian.heat=0;jail(L,3+Math.floor(rnd()*5),'你走进派出所，把手伸了出去。');}},
+   {t:'换一张脸、一个身份',d:`约 ${fmtMoney(c.g*3)}，要筑基以上`,dis:L.xian.realm<2||L.money.liq<c.g*3,w:.8,f:L=>{L.money.liq-=c.g*3;L.xian.wanted=0;L.xian.heat=1;bump(L,'social',-15);log(L,'你用法术改了骨相，又买了一个干净的身份。镜子里的人，你自己都快不认识了。','xian');}}]})},
+ {cd:2,c:L=>L.flags.prison>L.age&&L.xian.realm>=1,w:()=>2,b:(L,c)=>({title:'狱中',text:pick(['牢房很小，但没人打扰你修炼。','同监室的老头每天晚上都在哭。','放风的时候，有个刺青的大块头盯上了你。']),opts:[
+   {t:'安心坐牢，在牢里修炼',w:1.2,f:L=>{L.xian.exp+=xNeed(L.xian)*.05;addKar(L,1,'你在牢里打坐，心反而前所未有地静。');}},
+   {t:'越狱',d:L.xian.realm>=2?'对你来说不难，但从此被通缉':'炼气期，很可能失败',w:.5,f:L=>{if(rnd()<(L.xian.realm>=2?.9:.3)){L.flags.prison=0;L.xian.wanted=1;heat(L,5,'escape');log(L,'第二天早上，狱警发现你的牢房空了，门锁完好。','xian');}else{L.flags.prison+=3;log(L,'越狱失败，加刑三年。','world');}}},
+   {t:'教同监室的人吐纳',w:.8,f:L=>{L.xian.disc=(L.xian.disc||[]);if(L.xian.disc.length<6)L.xian.disc.push({n:genName(cNow(L).lg,'M'),from:'狱中',r:0});log(L,'他学得很认真。出狱那天，他说：“师父，我在外面等你。”','xian');}}]})},
+ {c:L=>L.xian.exposed>=6&&!L.xian.viral,w:()=>3,b:(L,c)=>{L.xian.viral=1;return{title:'全网热搜',text:'一个网友把你这些年的照片拼在一起：“这个人，三十年来一点没变。”评论区有几十万人。有人找到了你家楼下。',opts:[
+   {t:'公开身份',d:'名气、信徒和麻烦都会找上门',w:.6,f:L=>{L.xian.public=1;L.flags.fame=1;bump(L,'social',15);heat(L,2);log(L,'你开了一场直播，当着几百万人的面，让一杯水在空中停了十秒。','xianbig');}},
+   {t:`假死脱身（${fmtMoney(c.g*8)}）`,d:'换身份，和过去一刀两断',dis:L.money.liq<c.g*8,w:.8,f:L=>{L.money.liq-=c.g*8;L.xian.exposed=0;L.xian.heat=Math.max(0,(L.xian.heat||0)-2);bump(L,'social',-25);if(L.partner&&L.partner.alive&&!L.partner.xian){L.partner.rel-=30;}log(L,'新闻里说你“意外坠江”。你在另一座城市，看着自己的葬礼直播。','xian');}},
+   {t:'一概否认',w:1,f:L=>{L.xian.exposed-=2;heat(L,1);bump(L,'happy',-6);log(L,'热度过去了，但总有人在你楼下举着手机。','world');}}]};}},
+ {cd:25,c:L=>L.xian.public,w:()=>1,b:(L,c)=>pick([
+   {title:'信徒',text:'越来越多的人跪在你家门口，有人求你治病，有人求你收他为徒，还有人自称“教主”在网上用你的名义收钱。',opts:[{t:'出面辟谣，赶走那些骗子',w:1,f:L=>{addKar(L,2,'你一个一个找上门，让那些骗子把钱吐了出来。');}},{t:'顺势收钱，开宗立派',d:'钱很多，事很大',w:.5,f:L=>{L.money.liq+=c.g*20;heat(L,3,'illegal');addKar(L,-3,'信徒的香火钱像潮水一样涌来。');}},{t:'躲起来',w:.8,f:L=>{bump(L,'social',-8);}}]},
+   {title:'研究所的邀请',text:'几家顶尖的研究所想采集你的血样和基因，开出了天价。',opts:[{t:'同意',d:'钱很多，可能会被关起来',w:.6,f:L=>{L.money.liq+=c.g*15;if(rnd()<.3){jail(L,4,'采样之后，你“被留下来配合研究”，四年后才放出来。');}else log(L,'他们研究了一年，什么也没找到。','world');}},{t:'拒绝',w:1,f:L=>{heat(L,.5);}}]},
+   {title:'国家的邀请',text:'一个级别很高的人请你喝茶：“国家需要你这样的人。”',opts:[{t:'接受，当国家顾问',w:1,f:L=>{L.job={t:'国家特别顾问',ck:null,lvl:1,yrs:0,z:1.2,own:null,hi:true};L.xian.heat=0;L.xian.public=0;log(L,'你成了国家特别顾问。档案是绝密的。','xianbig');}},{t:'婉拒',w:.8,f:L=>{heat(L,1);}}]}])},
+ {c:L=>L.xian.exposed>=4&&(L.xian.heat||0)>=4&&L.xian.realm>=2&&!L.xian.contained,w:()=>1.5,b:(L,c)=>{L.xian.contained=1;return{title:'收容',text:'凌晨三点，一队穿着黑色作战服的人冲进了你家，枪上刻着符文。“特殊事务局。请配合。”',opts:[
+   {t:'束手就擒',d:'被关很多年',w:1,f:L=>{jail(L,8+Math.floor(rnd()*8),'你被带进一座地下设施。那里没有窗户，墙壁会吸走灵气。');L.xian.heat=0;}},
+   {t:'反抗',d:L.xian.realm>=4?'你有把握':'以你的境界，很危险',w:.6,f:L=>{if(rnd()<.25+L.xian.realm*.12){L.xian.wanted=1;heat(L,4,'escape');log(L,'你冲了出去。那一夜，城东的天亮了好几次。','xianbig');}else if(rnd()<.3)die(L,'拒捕时被特殊事务局击毙');else jail(L,15,'你被制服了，判了十五年，关在一个专门为你这种人建的地方。');}},
+   {t:'谈判：用一件法宝换自由',dis:!L.xian.art,w:.8,f:L=>{L.xian.art=null;L.xian.heat=0;log(L,'你交出了法宝。他们撤走了，但你知道，从此你在他们的名单上。','xian');}}]};}},
+ // ---- 元婴以后：开宗立派 ----
+ {c:L=>L.xian.realm>=4&&!L.xian.sect2,w:()=>2,b:(L,c)=>({title:'开宗立派',text:'你的修为已经足以开宗立派。在这个时代，开宗门需要一座山、一笔钱，还要想好怎么不被发现。',opts:[
+   {t:`买下一座山，开宗立派（${fmtMoney(c.g*80)}）`,dis:L.money.liq<c.g*80,w:1,f:L=>{L.money.liq-=c.g*80;L.xian.sect2={n:pick(['云栖','太一','归藏','明心','长生','玄都'])+pick(['宗','门','观','山']),size:3,lv:1,fame:0};log(L,`你在深山里立了${L.xian.sect2.n}。山门挂在一家“生态农庄”的招牌后面。`,'xianbig');}},
+   {t:'注册成一家“传统文化研究会”',d:'便宜，合法，但很多事不能做',w:.8,f:L=>{L.money.liq-=c.g*5;L.xian.sect2={n:'传统文化研究会',size:2,lv:1,fame:0,legal:1};log(L,'你注册了一家研究会。会员名册上，有几个人是真的有灵根。','xianbig');}},
+   {t:'不开，独来独往',w:.6,f:L=>{L.xian.sect2={none:1};}}]})},
+ {cd:6,c:L=>L.xian.sect2&&!L.xian.sect2.none,w:()=>1.6,b:(L,c)=>{const S=L.xian.sect2,disc=L.xian.disc=L.xian.disc||[];const evs=[
+   {title:`${S.n}·招新`,text:`有 ${3+Math.floor(rnd()*20)} 个年轻人想入门。有几个有灵根，大多数只是看了网上的视频。`,opts:[{t:`只收有灵根的（花 ${fmtMoney(c.g*S.lv*5)} 置办洞府）`,dis:L.money.liq<c.g*S.lv*5,w:1,f:L=>{L.money.liq-=c.g*S.lv*5;S.size+=2+Math.floor(rnd()*3);if(disc.length<8)disc.push({n:genName(cNow(L).lg,rnd()<.5?'M':'F'),from:S.n,r:0});log(L,`${S.n}又多了几个弟子。`,'xian');}},{t:'都收，交学费就行',w:.6,f:L=>{S.size+=10;L.money.liq+=c.g*S.size*.5;heat(L,1,'illegal');log(L,'山门热闹了起来，学费收了不少。也有人开始在网上说你们是邪教。','xian');}}]},
+   {title:`${S.n}·弟子闯祸`,text:`一个弟子下山时在夜市上和人动了手，把人打进了医院，视频传到了网上。`,opts:[{t:'按门规废掉他的修为，赔钱',w:1,f:L=>{L.money.liq-=c.g*2;S.size=Math.max(1,S.size-1);addKar(L,1,'你亲手废了他的修为，又给伤者赔了钱。');}},{t:'护短，把事情压下去',d:'会有后患',w:.6,f:L=>{L.money.liq-=c.g*5;heat(L,2,'assault');L.xian.exposed+=1;}}]},
+   {title:`${S.n}·叛徒`,text:'你最器重的一个弟子，偷了藏经阁里的功法，连夜下山，投靠了另一个门派。',opts:[{t:'亲自去清理门户',w:1,f:L=>{if(rnd()<.7){addKar(L,-1,'你追了三千里，把功法拿了回来。他跪在地上，你最终没有下手。');}else{S.fame-=5;log(L,'你没追上。功法流传了出去。','xian');}if(disc.length)disc.shift();}},{t:'随他去',w:.6,f:L=>{S.fame-=3;bump(L,'mind',-5);}}]},
+   {title:`${S.n}·宗门产业`,text:'门下有弟子提议：宗门得有自己的产业——药材种植、养生会所、风水咨询。',opts:[{t:`投 ${fmtMoney(c.g*S.lv*20)} 做起来`,dis:L.money.liq<c.g*S.lv*20,w:1,f:L=>{L.money.liq-=c.g*S.lv*20;S.biz=(S.biz||0)+1;log(L,`${S.n}有了第 ${S.biz} 份产业，每年都有进账。`,'xian');}},{t:'修行人不该沾这些',w:.6,f:L=>{addKar(L,1);}}]},
+   {title:`${S.n}·护山大阵`,text:'最近山里不太平，有别的门派在打你们灵脉的主意。',opts:[{t:`花 ${fmtMoney(c.g*S.lv*30)} 布下护山大阵`,dis:L.money.liq<c.g*S.lv*30,w:1,f:L=>{L.money.liq-=c.g*S.lv*30;S.lv++;log(L,`护山大阵成了。${S.n}升到了第 ${S.lv} 等。`,'xianbig');}},{t:'约对方掌门出来谈',w:1,f:L=>{if(rnd()<.5)log(L,'对方掌门是个明白人，你们划了界线。','xian');else{const r=rnd()<.3+L.xian.realm*.08;if(r){S.fame+=5;log(L,'谈崩了，打了一场。你赢了，对方退出了这片山。','xian');}else{S.size=Math.max(1,S.size-3);log(L,'谈崩了，打了一场。你们折了几个弟子。','death');}}}}]},
+   {title:`${S.n}·宗门大比`,text:'几家隐世宗门约好，在一座无人岛上举行百年一次的大比。',opts:[{t:'派最好的弟子去',w:1,f:L=>{if(rnd()<.4+S.lv*.08){S.fame+=10;log(L,`${S.n}的弟子拿了头名。那几家宗门的掌门，开始叫你“前辈”。`,'xianbig');}else log(L,'弟子们输得很惨，回来以后练得更狠了。','xian');}},{t:'自己下场',w:.6,f:L=>{S.fame+=15;log(L,'你只出了一剑。岛上安静了很久。','xianbig');}}]}];
+   if(disc.length){const d=pick(disc);evs.push({title:`弟子${d.n}`,text:`你的弟子${d.n}${d.r<2?'卡在瓶颈很多年了':'快要冲击更高的境界了'}，来求你指点。`,opts:[{t:'倾囊相授',d:'修为会慢一些',w:1,f:L=>{L.xian.exp*=.9;d.r++;log(L,`${d.n}突破了。TA跪在你面前磕了三个头。`,'xian');bump(L,'happy',5);}},{t:'让TA自己悟',w:.8,f:L=>{if(rnd()<.3){disc.splice(disc.indexOf(d),1);log(L,`${d.n}冲关失败，坐化了。你在TA的坟前站了一夜。`,'death');bump(L,'mind',-8);}}}]});}
+   return pick(evs);}},
+ // ---- 化神以后：世界级的事 ----
+ {cd:45,c:L=>L.xian.realm>=5,w:()=>1,b:(L,c)=>{const d=pick([['一场大地震','几十万人被埋在废墟下'],['一场海啸','海水正在冲向一座沿海城市'],['一座核电站的堆芯在熔化','如果炸了，方圆几百公里都会变成死地'],['一颗小行星','天文台算出它会在三天后落进太平洋']]);return{title:d[0],text:`${d[0]}——${d[1]}。以你的修为，能做点什么。但出手，就意味着全世界都会看见。`,opts:[
+   {t:'出手',d:'救下无数人，从此天下皆知',w:1,f:L=>{addKar(L,15,`你出手了。那一天的画面，被全世界的摄像头拍了下来。`);L.xian.exposed+=8;L.xian.public=1;L.flags.fame=1;log(L,'后来的历史书里，那一天叫“神迹日”。','xianbig');}},
+   {t:'悄悄地出手，不留痕迹',d:'很难，可能失败',w:.8,f:L=>{if(rnd()<.5){addKar(L,10,'灾难“奇迹般地”比预想的小了很多。只有你知道为什么。');}else{addKar(L,3,'你尽力了，但只能救下一部分人。');bump(L,'mind',-10);}}},
+   {t:'天道自有安排，不插手',w:.5,f:L=>{addKar(L,-6,'你在山上看着新闻里的伤亡数字一点点往上跳。');queue(L,evXHeart(L));}}]};}},
+ {c:L=>L.xian.realm>=5&&!L.xian.oldOne,w:()=>.8,b:(L,c)=>{L.xian.oldOne=1;return{title:'古老的东西醒了',text:'西北的一座古墓里，有个东西睡了两千年，醒了。附近几个村子的人开始一个接一个地失踪。特殊事务局的人第一次求到了你门上。',opts:[
+   {t:'去',d:'九死一生',w:1,f:L=>{if(rnd()<.55+((L.xian.kar||0)>0?.1:0)){addKar(L,8,'你和它在沙漠里斗了三天三夜。最后，你把它重新封了回去。');L.xian.heat=0;L.xian.wanted=0;L.flags.prison=0;log(L,'特殊事务局撤销了你所有的档案，作为谢礼。','xianbig');}else if(rnd()<.4)die(L,'与古墓里醒来的东西同归于尽');else{L.st.health=clamp(L.st.health-50,1,100);L.xian.exp*=.5;log(L,'你重伤而回，修为跌了一大截。','death');}}},
+   {t:'让他们自己想办法',w:.5,f:L=>{addKar(L,-4);log(L,'后来，那片戈壁被划成了军事禁区。','world');}}]};}},
+ {cd:70,c:L=>L.xian.realm>=5,w:()=>.7,b:(L,c)=>({title:'战争',text:`${yearOf(L)} 年，两个大国在边境上开火了。新闻说，这可能是第三次世界大战的开始。`,opts:[
+   {t:'出手，让两边的导弹都哑火',w:.8,f:L=>{addKar(L,8,'那一天，所有的导弹都没有响。两国的将军都说不清发生了什么。');L.xian.exposed+=3;heat(L,3);}},
+   {t:'凡人的事，凡人自己了',w:1,f:L=>{bump(L,'mind',-5);log(L,'战争打了三年。你在山上，每天都能感觉到很远的地方有很多人在死去。','world');}}]})},
+ {c:L=>L.xian.realm>=5&&!L.xian.avatar,w:()=>.8,b:(L,c)=>({title:'身外化身',text:'化神之后，你能分出一缕神识，凝成一个和你一模一样的化身。',opts:[
+   {t:'让化身替你去上班',d:'多一份收入，本体专心修炼',w:1,f:L=>{L.xian.avatar='work';log(L,'化身每天朝九晚五，回家后把一天的事“传”给你。你的同事从没发现。','xianbig');}},
+   {t:'让化身替你陪家人',d:'家人不会再觉得你冷淡',w:1,f:L=>{L.xian.avatar='family';log(L,'化身陪着家里人过日子，本体在山里闭关。偶尔，你会嫉妒你的化身。','xianbig');}},
+   {t:'让化身去世界各地游历',d:'见识和修为都会涨',w:.8,f:L=>{L.xian.avatar='roam';log(L,'你的化身去了南极、撒哈拉和亚马孙。它看见的，你都能看见。','xianbig');}}]})},
+ {c:L=>L.xian.realm>=5&&!L.xian.lastFriend&&L.age>=110,w:()=>1.5,b:L=>{L.xian.lastFriend=1;return{title:'最后一个认识你的人',text:'你小时候的邻居，一个一百多岁的老太太，在养老院里快不行了。她是这个世界上最后一个记得你小时候样子的人。',opts:[
+   {t:'去看她',w:1,f:L=>{log(L,'她已经认不出人了，却抓着你的手叫你的小名。那天夜里，她走了。从此这个世界上，再也没有人知道你是谁。','xianbig');bump(L,'mind',-8);}},
+   {t:'不去了',w:.4,f:L=>{bump(L,'mind',-12);}}]};}},
+ {c:L=>L.xian.realm>=5&&!L.xian.antarc,w:()=>.6,b:(L,c)=>{L.xian.antarc=1;return{title:'冰下的洞府',text:`卫星在南极冰盖下拍到了一个规则的空腔。你知道那是什么。去一趟，至少要 ${fmtMoney(c.g*40)}。`,opts:[
+   {t:'组织一支“科考队”',dis:L.money.liq<c.g*40,w:1,f:L=>{L.money.liq-=c.g*40;if(rnd()<.65){L.xian.gong=3;L.xian.exp+=xNeed(L.xian)*.3;log(L,'冰层下面是一座上古修士的洞府。墙上刻着的功法，比你会的任何一部都深。','xianbig');}else{L.st.health=clamp(L.st.health-30,1,100);log(L,'洞府里的禁制还在。你带着一身冻伤回来，什么也没拿到。','health');}}},
+   {t:'算了',w:.6,f:L=>{}}]};}},
+ {cd:30,c:L=>L.xian.realm>=6&&!L.xian.cave&&L.money.liq>=cNow(L).g*300,w:()=>1.5,b:(L,c)=>({title:'开辟洞天',text:'炼虚之后，你能把一片空间折叠起来，开辟一方只属于你的小世界。只是需要海量的灵材。',opts:[
+   {t:`倾尽家财（${fmtMoney(c.g*600)}）`,dis:L.money.liq<c.g*600,w:1,f:L=>{L.money.liq-=c.g*600;L.xian.cave=1;L.xian.heat=Math.max(0,(L.xian.heat||0)-3);log(L,'你的洞天成了。里面有山有水，有四季，没有手机信号，也没有特殊事务局。','xianbig');}},
+   {t:'先攒攒',w:.8,f:L=>{}}]})},
+ {c:L=>L.xian.realm>=6&&!L.xian.past,w:()=>.8,b:L=>{L.xian.past=1;const c0=CM[L.born];return{title:'回头看一眼',text:'你已经能在时间的河流里往回看了。只能看，不能碰。',opts:[
+   {t:`看看自己出生的那一天`,w:1,f:L=>{log(L,`你看见 ${L.by} 年的${c0?c0.n:'那个地方'}，看见${L.mother.alive?'':'早已不在的'}母亲抱着刚出生的你，累得睡着了。你在那儿站了很久。`,'xianbig');bump(L,'mind',8);}},
+   {t:'看看那个山里的老人是谁',w:1,f:L=>{log(L,'你看见了领你入门的那个人。他年轻的时候，也是在一个雷雨夜，被另一个人领进了山。','xianbig');}}]};}},
+ {c:L=>L.xian.realm>=7&&!L.xian.guardian,w:()=>1,b:(L,c)=>({title:'守护者',text:'几个大国的代表在一座没有名字的小岛上秘密会面。他们想请你做这个星球的“守护者”。',opts:[
+   {t:'答应',d:'不能再随心所欲，但没人再找你麻烦',w:1,f:L=>{L.xian.guardian=1;L.xian.heat=0;L.xian.wanted=0;L.flags.prison=0;L.job={t:'星球守护者',ck:null,lvl:1,yrs:0,z:2,own:null,hi:true};log(L,'你成了守护者。全世界只有不到一百个人知道这件事。','xianbig');}},
+   {t:'拒绝',w:.6,f:L=>{L.xian.guardian=-1;heat(L,2);}}]})},
+ {c:L=>L.xian.realm>=7&&!L.xian.askDao,w:()=>1,b:L=>{L.xian.askDao=1;return{title:'天道问心',text:'闭关的最深处，一个没有形状的声音问你：“你修行，是为了什么？”',opts:[
+   {t:'为了活下去',w:1,f:L=>{bump(L,'mind',-5);log(L,'声音沉默了。你感觉有一扇门，关上了一半。','xian');L.xian.exp*=.9;}},
+   {t:'为了那些我想保护的人',w:1,f:L=>{addKar(L,5,'声音笑了一下。你感觉身体里有什么东西被点亮了。');L.xian.exp+=xNeed(L.xian)*.1;}},
+   {t:'不知道，所以还在修',w:1,f:L=>{bump(L,'mind',10);log(L,'声音说：“很好。”然后就消失了。','xian');}}]};}},
+ {c:L=>L.xian.realm>=4&&L.kids.some(k=>k.alive)&&L.age>=90&&!(L.xian.famY>L.age),w:()=>1,b:(L,c)=>{L.xian.famY=L.age+25;const n=L.kids.filter(k=>k.alive).length+(L.grandkids||0);return{title:'家族',text:`你的后人已经有 ${n} 个了。他们大多不知道，那个逢年过节才出现的“远房亲戚”，是家族的老祖宗。`,opts:[
+   {t:`设立家族信托（${fmtMoney(c.g*100)}）`,dis:L.money.liq<c.g*100,w:1,f:L=>{L.money.liq-=c.g*100;bump(L,'happy',6);log(L,'你设立了家族信托。每个后人十八岁的时候，都会收到一笔“来自远房亲戚的礼物”。','family');}},
+   {t:'把真相告诉最小的那个孩子',w:.7,f:L=>{if(rnd()<.4){log(L,'那个孩子有灵根。你开始教TA吐纳——也许有一天，TA也会活很久。','xianbig');}else log(L,'那个孩子睁大眼睛听完，说：“太祖奶奶/太祖爷爷，你是神仙吗？”','family');}},
+   {t:'远远地看着就好',w:.8,f:L=>{bump(L,'mind',3);}}]};}}
+];
+// world flavour for very long lives
+const FUTURE=[[2100,'这一年，第一批出生在火星上的孩子成年了。'],[2110,'城市里已经很少有人开车了，天上全是安静的飞行器。'],[2125,'海平面又涨了，你年轻时住过的那条街，现在在水下。'],[2140,'人们开始用一种新的方式“说话”——直接把想法传给对方。你觉得这和传音入密没什么两样。'],[2160,'全世界的人平均能活到一百二十岁了。你终于不那么显眼了。'],[2190,'有人造出了能模拟“灵气”的机器。修行，突然不再是少数人的秘密。'],[2230,'人类的第一艘星际飞船出发了。你在山顶上，看着它的尾焰消失在夜空里。'],[2300,'这个世界上已经没有人说你小时候的那种语言了。'],[2400,'你已经记不清自己出生的那个年代是什么样子了。']];
+// ---------- 2. 后期玩法接入每一年 ----------
+const _xianTickL=xianTick;
+xianTick=function(L,c){const X=L.xian;if(!X||!L.alive)return;
+  X.heat=Math.max(0,(X.heat||0)-.25);if(X.exposed>0)X.exposed=Math.max(0,X.exposed-.15);
+  // side businesses carry legal risk
+  if(X.side==='tcm'&&rnd()<.04)heat(L,1,'illegal');if(X.side==='stream')X.exposed+=.2;
+  // sect income, avatar, cave
+  const S=X.sect2;if(S&&!S.none){L.money.liq+=c.g*(S.size*.15+(S.biz||0)*3);if(S.size>30&&!S.legal)heat(L,.3,'illegal');}
+  if(X.avatar==='work')L.money.liq+=c.g*2*(1+X.realm*.2);if(X.avatar==='family'&&L.partner)L.partner.rel=clamp(L.partner.rel+2,0,100);if(X.avatar==='roam')bump(L,'know',1);
+  if(X.cave)X.exp+=10*X.rm*Math.pow(1.4,Math.max(0,X.realm-1))*.8;
+  if(X.array)X.exp+=10*X.rm*Math.pow(1.4,Math.max(0,X.realm-1))*.25*X.array;
+  for(const[y,t]of FUTURE)if(yearOf(L)===y)log(L,t,'world');
+  _xianTickL(L,c);if(!L.alive)return;
+  if(!L.queue.length){const CD=X.lcd=X.lcd||{};const ok=LATEX.filter((e,i)=>{if(CD[i]>L.age)return false;try{return e.c(L);}catch(err){return false;}});const p=X.realm>=5?.55:X.realm>=4?.4:.25;if(ok.length&&rnd()<p){const e=wpick(ok,e=>typeof e.w==='function'?e.w(L):e.w);CD[LATEX.indexOf(e)]=L.age+(e.cd||12);const ev=e.b(L,c);if(ev)queue(L,ev);}}};
+// in prison: no job, no side income
+const _xianTickP=xianTick;
+xianTick=function(L,c){const pr=L.flags.prison>L.age,sd=L.xian&&L.xian.side;if(pr&&L.xian)L.xian.side=null;_xianTickP(L,c);if(pr&&L.xian&&L.xian.side==null)L.xian.side=sd;};
+// ---------- 3. 花钱的地方（有钱人和修行者都能用） ----------
+const RICHSPEND=[
+ {g:'大手笔',k:'world',n:'环游世界一年',c:3,fx:'p+10 k+3 s+3',era:L=>yearOf(L)>=1960},
+ {g:'大手笔',k:'villa',n:'买一栋海边别墅',c:60,fx:'p+6 s+2',ok:L=>!L.flags.villa,run:L=>{L.flags.villa=1;L.money.fund=(L.money.fund||0)+cNow(L).g*45;}},
+ {g:'大手笔',k:'yacht',n:'买一艘游艇',c:120,fx:'p+6 s+4',ok:L=>!L.flags.yacht,run:L=>{L.flags.yacht=1;}},
+ {g:'大手笔',k:'jet',n:'买一架私人飞机',c:300,fx:'p+5 s+3',ok:L=>!L.flags.jet,run:L=>{L.flags.jet=1;},era:L=>yearOf(L)>=1965},
+ {g:'大手笔',k:'island',n:'买一座私人岛屿',c:800,fx:'p+8',ok:L=>!L.flags.island,run:L=>{L.flags.island=1;L.money.fund=(L.money.fund||0)+cNow(L).g*500;if(L.xian)L.xian.heat=Math.max(0,(L.xian.heat||0)-2);}},
+ {g:'大手笔',k:'artbuy',n:'拍下一幅名画',c:200,fx:'p+4 s+2',run:L=>{L.money.fund=(L.money.fund||0)+cNow(L).g*200*(.6+rnd()*.8);}},
+ {g:'大手笔',k:'team',n:'买下一支球队',c:2000,fx:'p+8 s+10',ok:L=>!L.flags.team,run:L=>{L.flags.team=1;L.flags.fame=1;}},
+ {g:'大手笔',k:'school',n:'捐建一所学校',c:150,fx:'p+6 s+4',run:L=>{L.flags.fame=1;if(L.xian)addKar(L,4);}},
+ {g:'大手笔',k:'hospital',n:'捐建一座医院',c:600,fx:'p+8 s+6',run:L=>{L.flags.fame=1;if(L.xian)addKar(L,8);}},
+ {g:'大手笔',k:'found',n:'成立一个慈善基金会',c:1000,fx:'p+10 s+8',ok:L=>!L.flags.found,run:L=>{L.flags.found=1;L.flags.fame=1;if(L.xian)addKar(L,12);}},
+ {g:'大手笔',k:'space',n:'去太空旅行',c:250,fx:'p+12 k+2',era:L=>yearOf(L)>=2025},
+ {g:'大手笔',k:'antiage',n:'做一个疗程的抗衰老治疗',c:80,fx:'h+6',era:L=>yearOf(L)>=2035,ok:L=>BA(L)>=45,run:L=>{L.flags.antiage=L.age;}},
+ {g:'大手笔',k:'longres',n:'资助长寿科学研究',c:1500,fx:'p+4',era:L=>yearOf(L)>=2020,ok:L=>!L.flags.longres,run:L=>{L.flags.longres=1;}},
+ {g:'大手笔',k:'politics',n:'资助一场竞选',c:500,fx:'s+5',run:L=>{L.flags.pol=1;if(rnd()<.3)log(L,'你资助的人当选了。从此你说话，有人听了。','world');}},
+ {g:'修行',k:'xauction',n:'在修士拍卖会拍一件天材地宝',c:40,fx:'',ok:L=>L.xian&&L.xian.realm>=1,run:L=>{const X=L.xian;X.exp+=xNeed(X)*.06;log(L,'拍下的是一株'+pick(['千年雪莲','龙涎香','雷击桃木','九叶灵芝'])+'。','xian');}},
+ {g:'修行',k:'xarray',n:'在住处布一座聚灵阵',c:150,fx:'',ok:L=>L.xian&&L.xian.realm>=2&&(L.xian.array||0)<5,run:L=>{L.xian.array=(L.xian.array||0)+1;log(L,`聚灵阵升到了第 ${L.xian.array} 层，屋子里的灵气浓得像雾。`,'xian');}},
+ {g:'修行',k:'xtemple',n:'捐建一座道观',c:100,fx:'p+4',ok:L=>L.xian&&L.xian.realm>=1,run:L=>{addKar(L,5,'道观落成了。香火很旺，你没有留名。');}},
+ {g:'修行',k:'xshield',n:'请人炼一件护身法宝',c:200,fx:'',ok:L=>L.xian&&L.xian.realm>=2&&!L.xian.shield,run:L=>{L.xian.shield=1;log(L,'护身法宝炼成了。关键时候，它能替你挡一次死劫。','xian');}},
+ {g:'修行',k:'xmountain',n:'买一座山当道场',c:300,fx:'p+5',ok:L=>L.xian&&L.xian.realm>=1&&!L.xian.hill,run:L=>{L.xian.hill=1;L.xian.array=(L.xian.array||0)+1;log(L,'你买下了一座山。山顶有一眼泉水，灵气比城里浓十倍。','xian');}}
+];
+SPEND2.push(...RICHSPEND);
+// rich-only items show up when you can afford them
+const _spendOkL=spendOk;
+spendOk=function(L,it){if(it.g==='大手笔'||it.g==='修行'){if(L.money.liq<cNow(L).g*it.c*.5)return false;}return _spendOkL(L,it);};
+// money that buys life
+const _riskMultL=riskMult;
+riskMult=function(L,c){let m=_riskMultL(L,c);if(L.flags.antiage!=null&&L.age-L.flags.antiage<=1)m*=.75;if(L.flags.longres&&yearOf(L)>=2040)m*=.9;return m;};
+// the shield saves you once
+const _dieL=die;
+die=function(L,cause){if(L.xian&&L.xian.shield&&!/飞升|坐化|寿/.test(cause)){L.xian.shield=0;L.st.health=clamp(L.st.health+30,1,100);log(L,`本该就此死去（${cause}），护身法宝替你碎了。`,'xianbig');return;}return _dieL(L,cause);};
+// ordinary-life random events thin out for very high cultivators, so the late game is about cultivation
+const _randomEventL=randomEvent;
+randomEvent=function(L,c){if(L.xian&&L.xian.realm>=4&&rnd()<(L.xian.realm>=5?.8:.6))return;return _randomEventL(L,c);};
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -2530,7 +2680,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.2',APP_DATE='2026-10-19';
+const APP_VER='3.3',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
