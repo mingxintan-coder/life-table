@@ -382,6 +382,7 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .intim button b{font-size:13px}
 .intim button:disabled{opacity:.5}
 .feed .fl.k-intim{color:var(--red)}.log li.k-intim span:nth-child(2){color:var(--red)}
+.intim.others>summary{cursor:pointer;font-size:13px;color:var(--mute);padding:4px 0}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -3219,6 +3220,85 @@ function intimDo(L,k){const it=INTIM.find(x=>x[0]===k),P=L.partner,c=cNow(L);if(
   if(k==='talk')log(L,`你知道了：${P.name}${tasteText(P)}。`,'intim');
   else if(like&&!P.known&&rnd()<.5){P.known=1;log(L,`你发现，${P.name}原来很喜欢这样。`,'intim');}
   else if(clash)log(L,`${P.name}有点不太自在。你们约好下次换一种方式。`,'intim');}
+
+// ================= 亲密时光 · 扩充（成年人；点到为止；教学模式关闭） =================
+INTIM.push(
+ // 时间与氛围
+ ['rain','下雨天哪儿也不去','听着雨声窝在一起',0,['slow','gentle'],1,['外面下了一整天的雨。你们一整天都没下床。','雨打在窗上，{p}的呼吸打在你的颈边。']],
+ ['midnight','半夜醒来','谁也没说话，只是靠近',0,['dark','slow'],1,['半夜你醒了，发现{p}也醒着。黑暗里，你们什么也没说。']],
+ ['afterwork','下班进门的那一刻','包还没放下',0,['novel','lead','follow'],1,['你刚推开门，{p}就把你按在了门上。包掉在地上，谁也没去捡。']],
+ ['lunch','午休偷偷回家','只有一个小时',0,['novel'],1,['你们约好中午各自溜回家。下午开会的时候，你一直在走神。']],
+ ['holiday','节日的夜晚','烟花还没放完',0,['slow','words'],1,['窗外的烟花一朵一朵地炸开。你们没怎么看烟花。']],
+ ['birthday','给TA的生日礼物','是你自己',.01,['play','words'],1,['你在身上系了一个蝴蝶结，说：“生日快乐。”{p}笑得直不起腰，然后把你抱了起来。']],
+ ['anniv','纪念日重温第一次','回到那家酒店/那个房间',.06,['slow','words'],1,['你们订了第一次约会时住的那家酒店，连房间号都一样。很多年过去了，心跳还是一样。']],
+ ['snow','雪夜','壁炉、毯子、热红酒',.02,['slow','gentle'],1,['外面下着大雪，屋里很暖。你们裹在一条毯子里，谁也不想动。']],
+ // 地点
+ ['car','车里','停在没人的江边',0,['novel'],1,['你们把车停在江边。车窗起了雾，什么也看不清了。']],
+ ['balcony','阳台上的夜风','城市的灯火就在脚下',0,['novel','dark'],1,['阳台上的风有点凉，{p}从背后抱住了你。']],
+ ['beach','海边的夜','浪声很大，没人听得见',.1,['novel'],1,['那晚的海边只有你们两个人和一整片星空。后来，你们在沙子里找了很久的拖鞋。']],
+ ['cabin','山里的小木屋','没有信号，只有彼此',.08,['slow','novel'],1,['小木屋里只有一盏油灯。那三天，你们几乎没出门。']],
+ ['hotspring','温泉','私汤，热气蒸腾',.06,['slow','gentle'],1,['私汤里热气腾腾，{p}的脸被热气熏得通红。你们泡到快要晕过去。']],
+ ['kitchen','厨房里','做饭做到一半',0,['novel','play'],1,['锅里的菜还在滋滋作响，{p}从后面环住了你的腰。那顿饭最后糊了。']],
+ ['study','书房','TA在加班，你去“打扰”',0,['lead','novel'],1,['你端着一杯咖啡走进书房，把{p}的电脑合上了。TA的报告那天晚上没写完。']],
+ ['tent','阳台上搭个帐篷','假装在野外',0,['play','novel'],1,['你们在阳台上搭了一顶帐篷，假装在野外露营。邻居家的灯亮了又灭了。']],
+ // 方式与花样
+ ['slowdate','慢慢来的一整晚','从晚饭开始，一点也不急',.02,['slow'],1,['你们从晚饭开始，一点一点地靠近，一直到深夜。那是你们最慢的一次，也是最好的一次。']],
+ ['tease','逗一逗TA','一整天发暧昧的消息',0,['words','novel'],1,['你一整天都在给{p}发消息，一条比一条过分。TA下班回来，眼睛都红了。']],
+ ['oil','精油和按摩','一整套SPA，你是技师',.02,['gentle','slow'],1,['你把精油搓热了，从肩膀开始。{p}说“专业技师不会这样”，你说“今天的技师不太专业”。']],
+ ['mirror','镜子前','看着彼此',0,['novel','words'],1,['镜子里的两个人，你们都看了很久。']],
+ ['ice','冰块和温热的茶','冷热交替',0,['novel','dark'],1,['冰块在你的皮肤上化开，{p}又凑过来用温热的呼吸把它吹干。']],
+ ['feather','一根羽毛','从脚踝开始',0,['play','slow'],1,['那根羽毛从脚踝慢慢往上走，你笑得停不下来，后来就笑不出来了。']],
+ ['tie','丝带','轻轻地，随时可以解开',0,['follow','dark'],1,['{p}用一条丝带轻轻系住了你的手腕，说：“想停就说。”你没有说。']],
+ ['dice','掷骰子决定','一颗写着动作，一颗写着地方',.005,['play','novel'],1,['你们做了两颗骰子，一颗写着动作，一颗写着地方。那天晚上，骰子掷了很多次。']],
+ ['cards','真心话大冒险','只有你们两个人玩',0,['words','play'],1,['真心话问到第三个，你们就玩不下去了。']],
+ ['strip','输一局脱一件','拿副扑克牌',0,['play','novel'],1,['那副扑克牌后来再也找不到了。你们都说是对方藏起来的。']],
+ ['photo','只给彼此看的照片','拍完马上删',0,['novel','words'],1,['你们拍了几张只给彼此看的照片。第二天早上，你们一起删掉了，删的时候还在笑。']],
+ ['quiet','不许出声','隔壁住着你的父母/孩子',0,['dark','novel'],1,['家里来了亲戚。那天晚上，你们谁都不许出声，憋得很辛苦。']],
+ ['marathon','一个周末不出门','把手机关掉，外卖放门口',.03,['novel','slow'],1,['那个周末，你们把手机关了，外卖都放在门口。周一上班时，你们都腿软。']],
+ // 角色扮演（点到为止）
+ ['rp_doctor','“医生和病人”','TA说要给你“复诊”',.01,['play'],1,['{p}穿着白大褂进门，一本正经地说要给你“复诊”。没检查几分钟，TA就破功笑场了。']],
+ ['rp_teacher','“老师和学生”','你有“问题”要请教',0,['play','follow'],1,['你拿着一本书去找{p}“请教问题”。那本书最后一页也没翻。']],
+ ['rp_boss','“老板和秘书”','加班到很晚的办公室',0,['play','lead'],1,['你们假装是加班到深夜的老板和秘书。“老板”说今天的工作没做完，不许走。']],
+ ['rp_stranger','“酒店里的陌生人”','各自入住，在酒吧碰面',.06,['play','novel'],1,['你们各自办了入住，假装在酒店的酒吧里偶遇。{p}递过来一张房卡，说：“我住 1208。”']],
+ ['rp_old','“初恋重逢”','假装多年后再见',0,['play','words'],1,['你们假装是多年没见的初恋。{p}说：“你一点都没变。”你说：“你也是。”然后谁也没再说台词。']],
+ // 亲近与关怀
+ ['care','只是抱着睡','今天什么都不用做',0,['gentle','slow'],0,['你们只是抱着睡了一夜。醒来的时候，手还牵着。']],
+ ['wash','帮TA洗头','慢慢地，用温水',0,['gentle'],0,['你帮{p}洗头，水温刚好。TA闭着眼睛说：“你以后天天给我洗吧。”']],
+ ['cook','为TA做一桌菜','TA最爱吃的那几样',.01,['gentle','words'],0,['你做了一桌{p}最爱吃的菜。TA吃着吃着，突然说：“我好像又爱上你了。”']],
+ ['song','为TA唱首歌','跑调也没关系',0,['words','gentle'],0,['你给{p}唱了一首歌，跑调跑得很厉害。TA笑出了眼泪，说是TA听过最好听的一首。']]
+);
+// ---------- 和其他人（成年人之间；你情我愿；会有后果） ----------
+// [key, 名称, 提示, 花费, 条件(L), 结果(L,c)]
+const OTHERS=[
+ ['app','用交友软件约一个人','看看今晚会遇到谁',.01,L=>!L.partner,(L,c)=>{const ok=rnd()<.6;if(ok){bump(L,'happy',5);log(L,pick(['你们在一家小酒馆见面，聊得很投机。后来的事，你们都没说破。','对方比照片上还好看。那一晚很愉快，第二天早上，你们客气地道了别。']),'intim');}else{bump(L,'happy',-3);log(L,pick(['对方迟到了一个小时，聊了十分钟你就找借口走了。','对方和照片判若两人。你喝完那杯酒就回家了。']),'intim');}return ok;}],
+ ['bar','在酒吧和陌生人搭话','也许会有一个故事',.02,L=>!L.partner,(L,c)=>{const ok=rnd()<.5;if(ok){bump(L,'happy',4);log(L,'你们从吧台聊到了街角，又从街角聊到了天亮。你没有留TA的号码，TA也没有问。','intim');}else log(L,'你们聊了几句，没什么火花。','intim');return ok;}],
+ ['travel','旅途中的邂逅','在异国他乡，没人认识你',.15,L=>!L.partner&&cNow(L).g>4000,(L,c)=>{bump(L,'happy',8);log(L,pick(['你在旅途中遇见了一个人。那几天，你们一起看日落、一起迷路。分别的时候，你们都知道不会再见了。','火车上，坐在你对面的人和你聊了一整夜。到站的时候，TA问你要不要一起下车。']),'intim');return true;}],
+ ['fwb','和一个老朋友“越界”','你们都单身，也都寂寞',0,L=>!L.partner&&L.st.social>40,(L,c)=>{const ok=rnd()<.5;bump(L,'happy',4);if(ok){log(L,'你们心照不宣地成了彼此的“固定伴侣”。说好了不谈感情。','intim');L.flags.fwb=L.age;}else{bump(L,'social',-4);log(L,'第二天早上很尴尬。后来，你们连朋友都不太好做了。','intim');}return ok;}],
+ ['ex','和前任旧情复燃','TA也还单身',0,L=>!L.partner&&(L.exes>0||L.exNames),(L,c)=>{const ok=rnd()<.35;bump(L,'happy',5);if(ok){log(L,'那一晚之后，你们又试着在一起了。','intim');}else{bump(L,'mind',-4);log(L,'天亮以后，你们都想起了当初为什么分开。','intim');}return ok;}],
+ ['younger','和一个年纪小很多的人','对方很直接',0,L=>!L.partner&&L.age>=35,(L,c)=>{bump(L,'happy',5);log(L,'对方的热情让你觉得自己又年轻了一回。只是你们都知道，这不会长久。','intim');return true;}],
+ ['older','和一个年纪大很多的人','对方很懂你',0,L=>!L.partner&&L.age>=18&&L.age<35,(L,c)=>{bump(L,'happy',4);bump(L,'know',1);log(L,'对方温和、从容，知道你想要什么。你从TA身上学会了很多事。','intim');return true;}],
+ // 有伴侣时（越界，会有后果）
+ ['colleague','和同事的暧昧越了界','加班到很晚的那个晚上',0,L=>L.partner&&L.partner.alive&&!!L.job,(L,c)=>xAffair(L,c,'你们在空荡荡的办公室里，越过了那条线。',.3)],
+ ['trip2','出差时的一夜','一座陌生的城市',0,L=>L.partner&&L.partner.alive&&!!L.job,(L,c)=>xAffair(L,c,'出差的最后一晚，酒店的酒吧里，你遇到了一个人。',.2)],
+ ['online','网上聊天越界','一开始只是聊天',0,L=>L.partner&&L.partner.alive&&yearOf(L)>=2005,(L,c)=>xAffair(L,c,'你们在网上聊了几个月，后来约在了一家酒店。',.35)],
+ ['oldflame','和初恋重逢','TA也结婚了',0,L=>L.partner&&L.partner.alive&&L.age>=30,(L,c)=>xAffair(L,c,'同学聚会后，你们一起走了很长的路，最后没有各自回家。',.3)],
+ ['open','和{p}商量“开放”一点','你们都想试试，又怕伤到彼此',0,L=>L.partner&&L.partner.alive&&L.partner.rel>=60&&yearOf(L)>=1970,(L,c)=>{const P=L.partner;if(rnd()<.35){P.open=1;P.rel=clamp(P.rel+3,0,100);log(L,`${P.name}想了几天，点了头。你们定了很多规矩，第一条是：永远不许瞒着对方。`,'intim');return true;}P.rel=clamp(P.rel-12,0,100);log(L,`${P.name}很受伤：“你是不是已经有别人了？”那几个星期，家里很冷。`,'intim');return false;}],
+ ['openmeet','在“开放”的约定里见一个人','你们约好了规矩',.02,L=>L.partner&&L.partner.alive&&L.partner.open,(L,c)=>{const P=L.partner;const ok=rnd()<.7;bump(L,'happy',4);if(ok){P.rel=clamp(P.rel+2,0,100);log(L,'你按约定见了一个人，回家后一五一十告诉了'+P.name+'。TA抱住你，说：“回来就好。”','intim');}else{P.rel=clamp(P.rel-15,0,100);log(L,P.name+'嘴上说没事，可那天晚上TA一直背对着你。也许，这条路并不适合你们。','intim');if(rnd()<.4)P.open=0;}return ok;}],
+ ['three','和{p}一起，多一个人','你们都同意，对方也是',.03,L=>L.partner&&L.partner.alive&&L.partner.open&&L.partner.rel>=55,(L,c)=>{const P=L.partner;const ok=rnd()<.55;if(ok){bump(L,'happy',6);P.rel=clamp(P.rel+3,0,100);log(L,'那是一个你们后来谁也不太好意思提起、又都偷偷笑过很多次的夜晚。','intim');}else{P.rel=clamp(P.rel-12,0,100);bump(L,'mind',-5);log(L,'那天晚上之后，你们之间多了一点说不清的东西。你们决定再也不提这件事。','intim');}return ok;}]
+];
+function xAffair(L,c,line,pCaught){const P=L.partner;bump(L,'happy',4);log(L,line,'intim');
+  if(P.open){log(L,`你回家后告诉了${P.name}。按照约定，TA没有生气。`,'intim');return true;}
+  bump(L,'mind',-6);L.flags.affair=(L.flags.affair||0)+1;
+  if(rnd()<pCaught+(L.flags.affair-1)*.1){queue(L,{title:'被发现了',text:`${P.name}看到了不该看到的东西：一条消息、一张收据，或者你衣领上不属于你的味道。`,opts:[
+    {t:'坦白，求TA原谅',w:1,f:L=>{if(rnd()<.4){P.rel=clamp(P.rel-30,0,100);log(L,`${P.name}哭了一整夜。后来，TA说愿意再试一次。但有些东西，再也回不去了。`,'love');}else{log(L,`${P.name}收拾了行李。`,'love');divorce(L,cNow(L));}}},
+    {t:'死不承认',w:.7,f:L=>{if(rnd()<.5){P.rel=clamp(P.rel-20,0,100);log(L,`${P.name}没有再追问。可是从那以后，TA开始查你的手机。`,'love');}else{log(L,`证据摆在面前。${P.name}说：“我们离婚吧。”`,'love');divorce(L,cNow(L));}}}]});}
+  else if(rnd()<.06){L.chronic+=.3;bump(L,'health',-4);log(L,'几周后，你身上出了点问题。去医院查了，幸好能治。你不敢告诉任何人。','health');}
+  return true;}
+function othersAvail(L){if(L.teach||L.age<18)return[];return OTHERS.filter(o=>{try{return o[4](L);}catch(e){return false;}});}
+function othersDo(L,k){const o=OTHERS.find(x=>x[0]===k),c=cNow(L);if(!o||L.teach||L.age<18)return;L.otherY=L.otherY||{};if(L.otherY[k]===L.age)return;
+  const cost=c.g*o[3];if(L.money.liq<cost){log(L,'手头有点紧，改天吧。','money');return;}L.money.liq-=cost;L.otherY[k]=L.age;L.flags.first=1;
+  o[5](L,c);
+  if(!L.partner&&rnd()<.04){L.chronic+=.3;bump(L,'health',-3);log(L,'后来你去做了一次检查，医生让你以后注意保护。','health');}}
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -3298,7 +3378,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.7',APP_DATE='2026-10-19';
+const APP_VER='3.8',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -3632,6 +3712,8 @@ function tLife(L,c){
    ${L.need?`<details class="sec fold"><summary>幸福从哪里来</summary>${needsHTML(L,c)}</details>`:''}
    <details class="small muted"><summary>四个数值代表什么</summary><p>健康决定你的死亡风险乘数，也影响能不能继续工作，会随年龄自然下降。幸福是对生活的满意程度，受收入、伴侣、孩子、健康和负债影响，基准来自当地的生活满意度。知识影响升学、找工作和收入，家庭条件和当地教育水平影响更大。人际影响遇见伴侣的机会、关系好坏和晚年是否孤单。数值高只是提高可能性，不决定结果。</p></details>`;
 }
+function othersHTML(L,c,hasP){const os=othersAvail(L);if(!os.length)return'';const g=`<div class="spendgrid">${os.map(o=>{const done=L.otherY&&L.otherY[o[0]]===L.age;return`<button data-ot="${o[0]}" ${done?'disabled':''}><b>${esc(fill(o[1],L,c))}</b><span>${done?'今年已经有过了':esc(fill(o[2],L,c))}${o[3]?' · '+fmtMoney(c.g*o[3]):''}</span></button>`;}).join('')}</div>`;
+  return hasP?`<details class="intim others"><summary>${L.partner&&L.partner.open?'你们的“开放”约定':'越界 · 后果自负'}</summary><p class="xs muted">${L.partner&&L.partner.open?'在约定的规矩里，你们都可以有别的人。':'可能被发现，可能离婚，也可能染上病。'}</p>${g}</details>`:`<div class="intim"><h5>邂逅 <span class="xs muted">单身的时候，你可以主动一点</span></h5>${g}</div>`;}
 function tFamily(L,c){
   const P=L.partner;
   const par=`<div class="tbl"><div>父亲</div><div>${L.father.alive?L.father.age+'岁':'已故'}</div><div>母亲</div><div>${L.mother.alive?L.mother.age+'岁':'已故'}</div><div>兄弟姐妹</div><div>${L.sibs}</div><div>结婚 / 分开 / 丧偶</div><div>${L.marriages} / ${L.exes} / ${L.widowed}</div><div>孙辈</div><div>${L.grandkids}</div></div>`;
@@ -3645,8 +3727,8 @@ function tFamily(L,c){
      ${P.st!=='dating'?`<div class="small muted">TA 的收入约 ${fmtMoney(partnerWage(L,c,P))} / 年，计入家庭收入。</div>`:''}
      <div class="actions">${P.st==='dating'&&L.age>=18?'<button class="pri" data-a="propose">求婚</button>':''}${P.st!=='dating'&&!L.flags.childfree&&!L.flags.tryKids?'<button data-a="kids">商量要孩子</button>':''}${L.flags.tryKids?'<span class="small muted">正在备孕或等待领养</span>':''}<button data-a="split">${P.st==='dating'?'分手':'分开'}</button></div>
      <p class="small muted">想让关系变好，把重心放在「家人朋友」。</p>
-     ${intimAvail(L).length?`<div class="intim"><h5>亲密时光 <span class="xs muted">每样每年一次 · 合TA的心意效果更好</span></h5><div class="spendgrid">${intimAvail(L).map(it=>{const done=L.intimY&&L.intimY[it[0]]===L.age;return`<button data-in="${it[0]}" ${done?'disabled':''}><b>${it[1]}</b><span>${done?'今年已经安排过':it[2]}${it[3]?' · '+fmtMoney(c.g*it[3]):''}</span></button>`;}).join('')}</div></div>`:''}</div>`;
-  }else if(L.age>=16)pc=`<div class="card"><h5>单身</h5><p class="small muted">${!L.orient?'还没想清楚自己喜欢谁。':'人际越高、重心放在家人朋友时，越容易遇见人。'}</p></div>`;
+     ${intimAvail(L).length?`<div class="intim"><h5>亲密时光 <span class="xs muted">每样每年一次 · 合TA的心意效果更好</span></h5><div class="spendgrid">${intimAvail(L).map(it=>{const done=L.intimY&&L.intimY[it[0]]===L.age;return`<button data-in="${it[0]}" ${done?'disabled':''}><b>${it[1]}</b><span>${done?'今年已经安排过':it[2]}${it[3]?' · '+fmtMoney(c.g*it[3]):''}</span></button>`;}).join('')}</div></div>`:''}${othersHTML(L,c,true)}</div>`;
+  }else if(L.age>=16)pc=`<div class="card"><h5>单身</h5><p class="small muted">${!L.orient?'还没想清楚自己喜欢谁。':'人际越高、重心放在家人朋友时，越容易遇见人。'}</p>${othersHTML(L,c,false)}</div>`;
   const kids=L.kids.length?`<div class="tbl">${L.kids.map(k=>`<div>${esc(k.name)}（${k.sex==='M'?'儿子':'女儿'}）</div><div>${k.alive?k.age+'岁'+(k.uni?' · 上过大学':'')+(k.mar?' · 已婚':''):'已故'}</div>`).join('')}</div>`:'<p class="muted small">还没有孩子。</p>';
   const H=L.money.house;
   const life=`<div class="tbl"><div>住在</div><div>${L.rural?'乡村':'城镇'}${L.emig?' · 移民':''}</div><div>住房</div><div>${H?'自有住房':'租房或与家人同住'}</div><div>车</div><div>${L.car?'有':'没有'}</div><div>宠物</div><div>${L.pet?'一只猫':'没有'}</div><div>处境</div><div>${[L.flags.army>L.age&&'服役中',L.flags.prison>L.age&&'服刑中',L.flags.abroad>L.age&&'在国外打工',L.flags.homemaker&&'全职在家',L.flags.disabled&&'残疾',L.flags.dep&&'抑郁',L.flags.dem&&'阿尔茨海默病',L.flags.record&&'有案底',L.flags.leftBehind&&L.age<16&&'留守儿童'].filter(Boolean).join('、')||'—'}</div><div>习惯</div><div>${[L.smoker&&'吸烟',L.alc>=2&&'酗酒',L.gamble&&'赌博',L.drugs&&'药物成瘾',L.exercise&&'规律运动'].filter(Boolean).join('、')||'—'}</div><div>当时当地城镇化率</div><div>${Math.round(c.urb)}%</div><div>当时当地平均受教育</div><div>${c.sch.toFixed(1)} 年</div></div>`;
@@ -3757,6 +3839,8 @@ function wirePanel(L,c){
   P.querySelectorAll('.log li').forEach(li=>li.onclick=()=>{const e=L.log[+li.dataset.li];if(e){e.s=!e.s;render();}});
   P.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{let ok;inline(()=>{ok=spend(L,b.dataset.sp);});if(ok){const w=ALLOC[L.alloc];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;}render();});
   P.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>{inline(()=>intimDo(L,b.dataset.in));saveCur();render();});
+  P.querySelectorAll('[data-ot]').forEach(b=>b.onclick=()=>{inline(()=>othersDo(L,b.dataset.ot));saveCur();render();});
+  P.querySelectorAll('details.others').forEach(d=>{d.open=!!G.othersOpen;d.ontoggle=()=>{G.othersOpen=d.open;};});
   P.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{inline(()=>{
     const a=b.dataset.a;
     if(a==='propose'&&!L.queue.length)queue(L,evPropose(L,c));
