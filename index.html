@@ -377,6 +377,8 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:calc(14px*var
 .log li.k-echo span:nth-child(2){color:var(--accent)}.log li.k-echoBad span:nth-child(2){color:var(--bad)}
 
 #fsBtn{position:fixed;top:10px;right:10px;z-index:60;min-width:44px;height:36px;padding:0 10px;border-radius:18px;border:1px solid var(--rule,#ccc);background:var(--paper);color:var(--ink);font-size:15px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12);cursor:pointer}
+
+.event .autotag{background:var(--gold);color:#222;margin-left:6px}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -3716,7 +3718,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='4.2',APP_DATE='2026-10-22';
+const APP_VER='4.3',APP_DATE='2026-10-22';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -3894,16 +3896,16 @@ function startLife(resume){
   $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;G.tab=b.dataset.t;render();};
   paintDock();G.lastT=performance.now();clearInterval(G.timer);G.timer=setInterval(tick,100);render();saveCur();
 }
-function paintDock(){{const cp=$('#cPlay');if(cp)cp.textContent=G.playing?'暂停':'继续';const cm=$('#cMul');if(cm){if(!cm.options.length)cm.innerHTML=MULS.map((m,i)=>`<option value="${i}">${m}×</option>`).join('');cm.value=String(pref.mul);}}$('#mulSeg').innerHTML=seg(MULS.map((m,i)=>({v:i,n:m+'×'})),pref.mul);$('#autoBtn').setAttribute('aria-pressed',String(G.auto));$('#playBtn').textContent=G.playing?'暂停':'继续';}
+function paintDock(){{const ab=$('#autoBtn');if(ab){ab.textContent=G.auto?'自动抉择：开':'自动抉择：关';ab.setAttribute('aria-pressed',G.auto?'true':'false');}const cp=$('#cPlay');if(cp)cp.textContent=G.playing?'暂停':'继续';const cm=$('#cMul');if(cm){if(!cm.options.length)cm.innerHTML=MULS.map((m,i)=>`<option value="${i}">${m}×</option>`).join('');cm.value=String(pref.mul);}}$('#mulSeg').innerHTML=seg(MULS.map((m,i)=>({v:i,n:m+'×'})),pref.mul);$('#autoBtn').setAttribute('aria-pressed',String(G.auto));$('#playBtn').textContent=G.playing?'暂停':'继续';}
 onSeg($('#mulSeg'),v=>{pref.mul=+v;savePref();paintDock();});
 $('#playBtn').onclick=()=>{G.playing=!G.playing;G.lastT=performance.now();paintDock();};
-$('#autoBtn').onclick=()=>{G.auto=!G.auto;paintDock();saveCur();};
+$('#autoBtn').onclick=()=>{G.auto=!G.auto;paintDock();saveCur();render();toast(G.auto?'自动抉择：开（会替你做选择）':'自动抉择：关（遇到抉择会停下来等你）');};
 $('#nextBtn').onclick=()=>{const L=G.L;if(!L||!L.alive)return;if(G.soft){toast('先处理眼前的问题');return;}if(choiceDue()){toast('先做完眼前这个抉择');return;}revealAll();if(L.queue.length||G.soft){render();return;}G.acc=0;advance();};
 $('#dThemeBtn').onclick=()=>{$('#themeBtn').click();};
 $('#skipBtn').onclick=()=>{const L=G.L;if(!L||!L.alive||G.soft)return;if(choiceDue()){toast('先做完眼前这个抉择');return;}revealAll();let n=0;while(L.alive&&!L.queue.length&&!G.soft&&n++<120){advance(true);revealAll();}render();};
 $('#leaveBtn').onclick=()=>{if(G.soft&&G.soft.kind==='leave')return;G.soft={kind:'leave'};render();};
 $('#musicBtn').onclick=()=>Music.toggle();
-function choiceDue(){const L=G.L;return L.queue.length>0&&G.shown>=(L.queue[0].at??0);}
+function choiceDue(){const L=G.L;return L.queue.length>0&&G.shown>=Math.min(L.queue[0].at??0,L.log.length);}
 function revealOne(){const L=G.L,e=L.log[G.shown];if(!e)return;if(e.a===L.age&&e.m==null)e.m=clamp(Math.ceil((G.rev+1)/(G.yearN+1)*12),1,12);G.shown++;G.rev++;}
 function revealAll(){const L=G.L;while(G.shown<L.log.length){if(choiceDue())return;revealOne();}if(G.pendPause&&!L.queue.length){G.soft={kind:'pause',a:G.pendPause};G.pendPause=0;}}
 // put lines created by a player action at the reveal point, so the story stays in order
@@ -3986,14 +3988,14 @@ function render(){
   if(G.soft&&G.soft.kind==='pause')ev=`<div class="event soft"><span class="tag">停一下</span><h3>${PAUSE[G.soft.a]}</h3><textarea id="softTxt" maxlength="200" placeholder="想到什么就写一句。不写也可以。"></textarea><div class="actions"><button class="pri" id="softOk">记下来</button><button id="softNo">跳过</button></div></div>`;
   else if(G.soft&&G.soft.kind==='note')ev=`<div class="event soft"><span class="tag">写下想法</span><h3>${L.age} 岁，${esc(L.name)}此刻在想什么？</h3><textarea id="softTxt" maxlength="200"></textarea><div class="actions"><button class="pri" id="softOk">记下来</button><button id="softNo">算了</button></div></div>`;
   else if(G.soft&&G.soft.kind==='leave')ev=`<div class="event soft"><span class="tag">离开</span><h3>要中途离开这一生吗？</h3><p>可以先离开，以后从首页接着过；也可以彻底放弃。</p><div class="actions"><button class="pri" id="softOk">离开，回到首页</button><button id="softNo">继续活下去</button></div></div>`;
-  else if(L.queue.length){const e=L.queue[0];ev=`<div class="event"><span class="tag">抉择</span><h3>${esc(e.title)}</h3><p>${esc(e.text)}</p><div class="opts">${(()=>{const fx=previewFx(L,e);return e.opts.map((o,i)=>`<button class="opt" data-i="${i}" ${o.dis?'disabled':''}><b>${esc(o.t)}${fx[i]?` <em class="fx">${esc(fx[i])}</em>`:''}</b>${o.d?`<span>${esc(o.d)}</span>`:''}</button>`).join('');})()}</div>${e.help?`<p class="helpnote">${esc(e.help)}</p>`:''}</div>`;}
+  else if(choiceDue()){const e=L.queue[0];ev=`<div class="event"><span class="tag">抉择</span>${G.auto?'<span class="tag autotag">自动抉择开着，几秒后替你选 · 点底部「自动抉择」可关闭</span>':''}<h3>${esc(e.title)}</h3><p>${esc(e.text)}</p><div class="opts">${(()=>{const fx=previewFx(L,e);return e.opts.map((o,i)=>`<button class="opt" data-i="${i}" ${o.dis?'disabled':''}><b>${esc(o.t)}${fx[i]?` <em class="fx">${esc(fx[i])}</em>`:''}</b>${o.d?`<span>${esc(o.d)}</span>`:''}</button>`).join('');})()}</div>${e.help?`<p class="helpnote">${esc(e.help)}</p>`:''}</div>`;}
   $('#gEvent').innerHTML=ev;
   {const D=$('#gDialog');if(D.classList.contains('hasev')!==!!ev){const F=$('#gFeed'),bot=F&&F.scrollHeight-F.scrollTop-F.clientHeight<60;D.classList.toggle('hasev',!!ev);if(F&&bot)F.scrollTop=F.scrollHeight;}}if(ev&&!G._evShown){G._evShown=1;setTimeout(()=>{const d=$('#gEvent');if(d)d.scrollIntoView({block:'nearest',behavior:'smooth'});},50);}if(!ev)G._evShown=0;
   if(G.soft){
     $('#softOk').onclick=()=>{const k=G.soft.kind;if(k==='leave'){G.soft=null;G.ended=true;clearInterval(G.timer);clearCur();route('home');return;}const t=($('#softTxt').value||'').trim();if(k==='pause')L.notesAsked[G.soft.a]=1;if(t){L.notes.push({a:L.age,q:k==='pause'?PAUSE[G.soft.a]:'',t});inline(()=>log(L,'「'+t+'」','note'));}G.soft=null;render();};
     $('#softNo').onclick=()=>{if(G.soft.kind==='pause')L.notesAsked[G.soft.a]=1;G.soft=null;render();};
     if(G.soft&&G.soft.kind==='leave'){$('#softOk').textContent='离开，回到首页（不保存）';$('#softOk').insertAdjacentHTML('afterend','<button id="softPause">先离开，以后继续</button>');$('#softPause').onclick=()=>{G.soft=null;saveCur();G.ended=true;clearInterval(G.timer);route('home');};}
-  }else if(L.queue.length)$('#gEvent').querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(L.queue[0].opts[+b.dataset.i]));
+  }else if(choiceDue())$('#gEvent').querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(L.queue[0].opts[+b.dataset.i]));
   renderFocus(L);
   {const xp=$('#gXian');if(xp){const h=L.xian&&L.xian.realm>=0?xianHTML2(L):'';if(xp._h!==h){xp.innerHTML=h;xp._h=h;}}}
   $('#moreBtn').textContent=G.more?'收起详情':'详情：全部经历 · 家人 · 花钱投资 · 精算 · 同一秒出生的人';$('#gMore').hidden=!G.more;
