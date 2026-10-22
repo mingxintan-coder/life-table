@@ -377,6 +377,11 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .xianpanel .xbar i{display:block;height:100%;background:var(--accent)}
 .xianpanel p{margin:2px 0}
 .xianpanel .xwarn{color:var(--bad);font-weight:600}
+.intim{margin-top:10px;padding-top:8px;border-top:1px dashed var(--rule)}
+.intim h5{margin:0 0 6px;font-size:14px;color:var(--red)}
+.intim button b{font-size:13px}
+.intim button:disabled{opacity:.5}
+.feed .fl.k-intim{color:var(--red)}.log li.k-intim span:nth-child(2){color:var(--red)}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -3178,6 +3183,42 @@ const NEV=NEV_SRC.map((e,i)=>{const cf=compileCond(e.cond);const key='nev'+i;
 POOL.push(...NEV);
 
 YE.push(...YE_MORE.map(([cond,w,t,fx],i)=>({id:YE.length+i,rep:/\brep\b/.test(cond),f:compileCond(cond.replace(/\brep\b/,'')),w,t,fx})));
+// ================= 亲密时光：在“家人与生活”里主动安排（成年人；点到为止；教学模式关闭） =================
+// [key, 名称, 提示, 花费(×人均收入), 偏好, 需要已有亲密关系, 文本若干]
+const INTIM=[
+ ['candle','烛光晚餐','关掉手机，只有你们俩',.02,['slow','words'],0,['你们在烛光里吃了很久，谁也没看手机。后来蜡烛烧完了，你们也没开灯。','{p}举起杯子说：“敬我们。”那天晚上，你们都喝得刚刚好。']],
+ ['letter','写一封情书','有些话说不出口',0,['words','gentle'],0,['你把情书塞进{p}的包里。晚上TA回来，什么也没说，只是抱了你很久。','{p}读完你的信，眼睛红了，说：“你怎么不早写。”']],
+ ['dance','客厅里跳支慢舞','放一首你们的歌',0,['slow','gentle'],0,['你们在客厅里踩着彼此的脚，笑着跳完了一整首歌，然后又放了一遍。','音乐停了，你们还抱着，没有松开。']],
+ ['kiss','出门前一个很长的吻','让TA一整天都想着你',0,['slow','words'],0,['{p}出门的时候，你拉住TA，吻了很久。TA那天迟到了，回来时脸还是红的。']],
+ ['trip','说走就走的二人旅行','去一个谁也不认识你们的地方',.2,['novel'],0,['你们去了一座海边小城。白天在海边走，晚上听着浪声，谁也不想回来。','你们在山里的民宿住了三天，那三天，世界只有你们两个人。']],
+ ['massage','给TA按摩','TA今天太累了',0,['gentle','slow'],1,['你给{p}按了很久的肩。TA一开始说舒服，后来就不说话了，转过身来看着你。','你点了一支香薰，让{p}趴下。后来的事，就顺理成章了。']],
+ ['bath','一起泡个澡','放满一缸热水',0,['slow','gentle'],1,['浴室里全是水汽，你们挤在一起，笑着说浴缸太小了。','热水，泡泡，还有{p}靠在你肩上的重量。']],
+ ['hotel','订一间酒店','换个地方，换个心情',.05,['novel'],1,['你们订了一间能看见城市夜景的房间。那一晚，窗帘一直没拉上。','你们假装是来出差的陌生人，在酒店前台办了入住。电梯门一关，你们就笑出了声。']],
+ ['camp','去郊外露营看星星','只有一顶帐篷',.03,['novel','dark'],1,['那晚的星星很多，帐篷很小。你们后来都没怎么看星星。']],
+ ['morning','周末早上赖床','谁也不许先起来',0,['morning','slow'],1,['周末的早上，阳光从窗帘缝里漏进来。{p}翻了个身，把你抱得更紧了。那天你们中午才起。']],
+ ['dark','关掉灯，蒙上眼睛','只剩下声音和触感',0,['dark'],1,['{p}用一条丝巾轻轻蒙住了你的眼睛。黑暗里，每一点声音都变得很清楚。','你关掉了所有的灯。{p}在黑暗里找到了你的手。']],
+ ['whisper','在TA耳边说悄悄话','说那些平时不好意思说的',0,['words'],1,['你在{p}耳边说了一句话，TA的耳朵一下子红了。','{p}在你耳边说的那些话，让你脸红了一整天。']],
+ ['play','假装第一次见面','扮成两个陌生人',.01,['play','novel'],1,['你们约在一家酒吧，假装互不认识。{p}走过来问：“这里有人吗？”你们都没忍住笑。','{p}换了一身你从没见过的打扮来敲门。那个晚上，你们都演得很投入。']],
+ ['outfit','穿上TA喜欢的衣服','TA提过一次，你一直记得',.03,['play','novel'],1,['你穿上了{p}提过一次的那身衣服。TA看了你很久，什么也没说出来。']],
+ ['lead','这次你来主导','看看TA什么反应',0,['follow'],1,['这一次，你说了算。{p}有点意外，然后乖乖地顺着你。','你牵着{p}的手，一步一步地带着TA。TA笑着说：“你今天不太一样。”']],
+ ['follow','这次全听TA的','把自己交给TA',0,['lead'],1,['这一次，你全听{p}的。TA很认真，你也很放松。']],
+ ['newplace','在家里换个地方','不一定非要在卧室',0,['novel'],1,['那天晚上，你们没有回卧室。第二天收拾的时候，你们都不敢看对方。','厨房的灯还亮着。后来，锅里的汤都煮干了。']],
+ ['talk','聊聊彼此想要什么','有些事说出来就好了',0,[],1,['你们靠在床头，聊了很久彼此喜欢什么、不喜欢什么。说着说着，都红了脸，也更懂对方了。']]
+];
+function intimOK(L){const P=L.partner;return !L.teach&&L.age>=18&&P&&P.alive&&P.age>=18;}
+function intimAvail(L){if(!intimOK(L))return[];return INTIM.filter(it=>!it[5]||L.flags.first);}
+function intimDo(L,k){const it=INTIM.find(x=>x[0]===k),P=L.partner,c=cNow(L);if(!it||!intimOK(L))return;L.intimY=L.intimY||{};if(L.intimY[k]===L.age)return;
+  const cost=c.g*it[3];if(L.money.liq<cost){log(L,'这个月手头有点紧，只好改天。','money');return;}
+  L.money.liq-=cost;L.intimY[k]=L.age;if(it[5])L.flags.first=1;
+  const pt=tastesOf(P),like=it[4].some(t=>pt.includes(t)),clash=it[4].some(t=>pt.some(p=>(TASTES[p].clash||[]).includes(t)));
+  const n=Object.values(L.intimY).filter(a=>a===L.age).length,tire=n>3?.5:1;
+  let r=(like?12:clash?-2:6)*tire,h=like?6:clash?0:3;
+  if(k==='talk'){P.known=1;r=8;h=3;}
+  P.rel=clamp(P.rel+r,0,100);bump(L,'happy',h*tire);bump(L,'mind',like?3:1);
+  log(L,fill(pick(it[6]),L,c)+(cost>0?`（花了 ${fmtMoney(cost)}）`:''),'intim');
+  if(k==='talk')log(L,`你知道了：${P.name}${tasteText(P)}。`,'intim');
+  else if(like&&!P.known&&rnd()<.5){P.known=1;log(L,`你发现，${P.name}原来很喜欢这样。`,'intim');}
+  else if(clash)log(L,`${P.name}有点不太自在。你们约好下次换一种方式。`,'intim');}
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -3257,7 +3298,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.6',APP_DATE='2026-10-19';
+const APP_VER='3.7',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -3603,7 +3644,8 @@ function tFamily(L,c){
      <div class="stat"><span>关系</span>${bar(P.rel)}<span class="num">${Math.round(P.rel)}</span></div>
      ${P.st!=='dating'?`<div class="small muted">TA 的收入约 ${fmtMoney(partnerWage(L,c,P))} / 年，计入家庭收入。</div>`:''}
      <div class="actions">${P.st==='dating'&&L.age>=18?'<button class="pri" data-a="propose">求婚</button>':''}${P.st!=='dating'&&!L.flags.childfree&&!L.flags.tryKids?'<button data-a="kids">商量要孩子</button>':''}${L.flags.tryKids?'<span class="small muted">正在备孕或等待领养</span>':''}<button data-a="split">${P.st==='dating'?'分手':'分开'}</button></div>
-     <p class="small muted">想让关系变好，把重心放在「家人朋友」。</p></div>`;
+     <p class="small muted">想让关系变好，把重心放在「家人朋友」。</p>
+     ${intimAvail(L).length?`<div class="intim"><h5>亲密时光 <span class="xs muted">每样每年一次 · 合TA的心意效果更好</span></h5><div class="spendgrid">${intimAvail(L).map(it=>{const done=L.intimY&&L.intimY[it[0]]===L.age;return`<button data-in="${it[0]}" ${done?'disabled':''}><b>${it[1]}</b><span>${done?'今年已经安排过':it[2]}${it[3]?' · '+fmtMoney(c.g*it[3]):''}</span></button>`;}).join('')}</div></div>`:''}</div>`;
   }else if(L.age>=16)pc=`<div class="card"><h5>单身</h5><p class="small muted">${!L.orient?'还没想清楚自己喜欢谁。':'人际越高、重心放在家人朋友时，越容易遇见人。'}</p></div>`;
   const kids=L.kids.length?`<div class="tbl">${L.kids.map(k=>`<div>${esc(k.name)}（${k.sex==='M'?'儿子':'女儿'}）</div><div>${k.alive?k.age+'岁'+(k.uni?' · 上过大学':'')+(k.mar?' · 已婚':''):'已故'}</div>`).join('')}</div>`:'<p class="muted small">还没有孩子。</p>';
   const H=L.money.house;
@@ -3714,6 +3756,7 @@ function wirePanel(L,c){
   onSeg(P.querySelector('#allocSeg'),v=>{L.alloc=v;const w=ALLOC[v];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;render();});
   P.querySelectorAll('.log li').forEach(li=>li.onclick=()=>{const e=L.log[+li.dataset.li];if(e){e.s=!e.s;render();}});
   P.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{let ok;inline(()=>{ok=spend(L,b.dataset.sp);});if(ok){const w=ALLOC[L.alloc];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;}render();});
+  P.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>{inline(()=>intimDo(L,b.dataset.in));saveCur();render();});
   P.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{inline(()=>{
     const a=b.dataset.a;
     if(a==='propose'&&!L.queue.length)queue(L,evPropose(L,c));
