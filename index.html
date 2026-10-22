@@ -3182,9 +3182,9 @@ E('a20-55 padult intim noteach',1,'安全','一切发生得很突然。',[['先�
 function fxApplyX(fx,L,c){if(!fx)return;fxApply(fx,L,c);const m=fx.match(/r([+-][\d.]+)/);if(m&&L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel+ +m[1],0,100);}
 const NEV=NEV_SRC.map((e,i)=>{const cf=compileCond(e.cond);const key='nev'+i;
   return{heavy:!!(e.x.x&&e.x.x.heavy),adult:!!e.x.adult,c:(L,c)=>!L.flags[key]&&cf(L,c)&&(!e.x.c||e.x.c(L,c)),w:()=>e.w,b:(L,c)=>{L.flags[key]=1;
-    return{title:fill(e.title,L,c),text:fill(e.text,L,c),opts:e.opts.map((o,oi)=>({t:fill(o[0],L,c),w:1,f:L=>{const c2=cNow(L);fxApplyX(o[1],L,c2);if(o[2])log(L,fill(o[2],L,c2),'life');let ok=true;
-      if(o.length>=7){ok=rnd()<o[3];const fx=ok?o[4]:o[6],t=ok?o[5]:o[7];fxApplyX(fx,L,c2);if(t)log(L,fill(t,L,c2),'life');}
-      else if(o.length>=6){ok=rnd()<o[3];if(!ok){fxApplyX(o[4],L,c2);if(o[5])log(L,fill(o[5],L,c2),'life');}}
+    return{title:fill(e.title,L,c),text:fill(e.text,L,c),opts:e.opts.map((o,oi)=>({t:fill(o[0],L,c),d:o.length>=6&&typeof netHint==='function'?netHint(L,o[0],e.title):'',w:1,f:L=>{const nb=typeof netBias==='function'?netBias(L,o[0],e.title):0;const c2=cNow(L);fxApplyX(o[1],L,c2);if(o[2])log(L,fill(o[2],L,c2),'life');let ok=true;
+      if(o.length>=7){ok=rnd()<clamp(o[3]+nb,.02,.98);const fx=ok?o[4]:o[6],t=ok?o[5]:o[7];fxApplyX(fx,L,c2);if(t)log(L,fill(t,L,c2),'life');}
+      else if(o.length>=6){ok=rnd()<clamp(o[3]+nb,.02,.98);if(!ok){fxApplyX(o[4],L,c2);if(o[5])log(L,fill(o[5],L,c2),'life');}}
       if(e.x.run)e.x.run(L,oi,ok);}}))};}};});
 POOL.push(...NEV);
 
@@ -3399,6 +3399,71 @@ function laterTick(L,c){const due=(L.later||[]).filter(x=>x.at<=L.age);if(!due.l
 const _careerCQ=career;
 career=function(L,c){_careerCQ(L,c);if(!L.alive)return;driftTick(L);echoTick(L,c);laterTick(L,c);carTick(L,c);propTick(L,c);
   const P=L.partner;if(P&&P.alive&&P.bond){P.rel=clamp(P.rel+Math.min(3,P.bond*.15),0,100);P.bond*=.9;}};
+// ================= 选项之间的因果网：你做过的选择，决定之后的选项和结局 =================
+// 每个选择会按它的“性质”记进你的为人（L.tr）；为人会改变之后事件的成败、解锁新的选项，并让当年牵扯的人和事回来找你。
+const TAGS=[
+ ['honest',/坦白|实话|认错|认罪|承认|交给|如实|退回|说清楚|报警|举报|主动|自首|道歉|配合/,'诚实'],
+ ['deceit',/瞒|假装|掩盖|偷|不承认|撒谎|作弊|抄|否认|压下去|处理掉|做假|偷偷|装作|装没/,'爱耍小聪明'],
+ ['risk',/赌|重仓|全仓|一半积蓄|买币|冲上去|闯|辞职|创业|下海|越狱|反抗|跑路|跳|豪|梭哈|抄底|出手/,'敢冒险'],
+ ['cautious',/不碰|算了|再想想|稳|不去|不买|先不|等等|保守|拒绝|婉拒|不了/,'稳当'],
+ ['generous',/借|捐|帮|资助|给|让给|请|救|陪|照顾|收留|志愿|献血|渡/,'仗义'],
+ ['selfish',/不借|不给|不管|走开|关我|自认倒霉|推给|不拿|不救|袖手/,'只顾自己'],
+ ['family',/父母|爸妈|孩子|家人|回家|陪|孙|老伴|伴侣|TA|老人/,'顾家'],
+ ['career',/加班|拼|升|工作|卷|述职|竞聘|学|考|进修|培训/,'上进'],
+ ['romance',/表白|约会|求婚|亲|越界|邂逅|在一起|见面|旧情|酒店|今晚/,'多情'],
+ ['violent',/打|动手|教训|让他吃点苦头|对峙|斗法/,'冲动']];
+const TAGN=Object.fromEntries(TAGS.map(t=>[t[0],t[2]]));
+function tagsOf(s){return TAGS.filter(([k,re])=>re.test(s)).map(t=>t[0]);}
+const TR=L=>L.tr||(L.tr={});
+// how your record bends the odds of an option
+function netBias(L,optText,title){const T=TR(L),tg=tagsOf(optText),cap=v=>Math.min(6,v||0);let b=0;
+  for(const t of tg){if(t==='deceit')b-=.03*cap(T.deceit);else if(t==='violent')b-=.04*cap(T.violent);else if(t==='selfish')b-=.02*cap(T.selfish);else b+=.025*cap(T[t]);}
+  if(tagsOf(title+optText).includes('romance')&&(T.deceit||0)>=3)b-=.08;
+  if(/钱|借|贷|生意|投资|担保/.test(title)&&(T.generous||0)>=4)b+=.05;
+  if(/工作|领导|同事|公司|老板/.test(title)&&(T.honest||0)>=4)b+=.04;
+  return clamp(b,-.3,.25);}
+function netHint(L,optText,title){const b=netBias(L,optText,title);if(Math.abs(b)<.05)return'';const T=TR(L),tg=tagsOf(optText);const key=tg.find(t=>(T[t]||0)>=2)||Object.keys(T).sort((a,b)=>T[b]-T[a])[0];
+  return b>0?`你一向${TAGN[key]||'有经验'}，把握大一些`:`你${TAGN[key]||'过去的事'}的名声在外，这次可能没那么顺`;}
+// ---- record every choice, and remember who it touched ----
+const _resolveN=resolve;
+resolve=function(L,opt){const ev=L.queue[0];const title=ev?ev.title:'';_resolveN(L,opt);if(!ev||!L.alive)return;
+  const tg=tagsOf(opt.t+' '+(opt.d||''));const T=TR(L);for(const t of tg)T[t]=(T[t]||0)+1;
+  const N=L.net=L.net||{ties:[],grudges:[],secrets:[]};
+  if(tg.includes('generous')&&rnd()<.5)N.ties.push({src:title,t:opt.t,a:L.age});
+  if((tg.includes('selfish')||tg.includes('violent'))&&rnd()<.5)N.grudges.push({src:title,t:opt.t,a:L.age});
+  if(tg.includes('deceit')&&rnd()<.6)N.secrets.push({src:title,t:opt.t,a:L.age});
+  for(const k of['ties','grudges','secrets'])if(N[k].length>20)N[k].shift();};
+// ---- options that only exist because of what you did before ----
+const NETOPT=[
+ [/失业|被裁|还不上|窟窿|高利贷|讨薪|AI 来了|这一行没了|降薪/,L=>L.net&&L.net.ties.length,L=>{const x=L.net.ties[0];return{t:`找当年在「${x.src}」里帮过的人`,d:`${x.a}岁那年你帮过TA`,w:1.5,f:L=>{L.net.ties.shift();const c=cNow(L);if(rnd()<.75){L.money.liq+=c.g*.6;if(!L.job&&L.age<60)findJob(L,c);log(L,`你给当年在「${x.src}」里帮过的那个人打了电话。TA二话没说就来了：“当年要不是你……”`,'echo');}else log(L,'电话打过去，号码已经是空号了。','echoBad');}};}],
+ [/被冤枉|被调查|做账|审计|巡视|内幕|工作上的大错|功劳被抢/,L=>(TR(L).honest||0)>=3,L=>({t:'相信大家知道你的为人',d:'你这些年一直实话实说',w:1.5,f:L=>{if(rnd()<.7){bump(L,'social',4);log(L,'好几个人站出来替你说话：“TA不是那种人。”事情很快就过去了。','echo');}else log(L,'可惜，这一次为人也救不了你。','echoBad');}})],
+ [/晋升|竞聘|跳槽|猎头|谈加薪|外派|带新人/,L=>(TR(L).career||0)>=4,L=>({t:'凭这些年拼出来的口碑',d:'你一直很上进',w:1.5,f:L=>{if(rnd()<.65){if(L.job){L.job.z+=.12;if(typeof promoteJob==='function')promoteJob(L,'口碑攒够了，你被提拔了',1);}log(L,'领导翻了翻你这些年的履历，说：“就是你了。”','echo');}else log(L,'名额被一个关系户拿走了。','echoBad');}})],
+ [/手机|发现了|被发现了|感情亮起红灯|七年之痒|冷战|吵架/,L=>(TR(L).deceit||0)>=3&&L.partner&&L.partner.alive,L=>({t:'发誓这次说的都是真的',d:'你以前骗过人，TA未必信',w:.6,f:L=>{if(!L.partner||!L.partner.alive)return;if(rnd()<.3){L.partner.rel=clamp(L.partner.rel+5,0,100);log(L,'TA看了你很久，选择了相信。','echo');}else{L.partner.rel=clamp(L.partner.rel-10,0,100);log(L,'TA冷笑了一声：“你哪次不是这么说的？”','echoBad');}}})],
+ [/表白|遇见|相亲|交友|网恋|旧情人|心动|暧昧/,L=>(TR(L).romance||0)>=4,L=>({t:'拿出你的老经验',d:'你在感情上见过世面',w:1.2,f:L=>{if(rnd()<.6){bump(L,'happy',5);log(L,'你知道什么时候该说什么话。对方笑得很开心。','echo');}else{bump(L,'happy',-3);log(L,'对方说：“你好像对谁都这样。”','echoBad');}}})],
+ [/父母|爸妈|孩子|养老|老了|婆家|岳家|遗产|家族/,L=>(TR(L).family||0)>=5,L=>({t:'把全家人叫到一起商量',d:'你一直是家里最顾家的人',w:1.4,f:L=>{if(rnd()<.75){bump(L,'social',5);bump(L,'happy',3);log(L,'大家都听你的。这件事，一家人一起扛了过去。','echo');}else log(L,'这一次，家里人吵成了一团，谁也不听谁的。','echoBad');}})],
+ [/赌|币|股|理财|内幕|P2P|AGI|期权|下海|创业/,L=>(TR(L).risk||0)>=5,L=>({t:'再赌一把大的',d:'你一向敢冒险——但运气不会一直站在你这边',w:.8,f:L=>{const c=cNow(L);if(rnd()<.45){L.money.liq+=c.g*2;log(L,'你又赌赢了。','echo');}else{L.money.liq-=Math.max(c.g,L.money.liq*.5);log(L,'这一次，你输得很惨。','echoBad');}}})],
+ [/打架|酒吧|仇家|邻居|网暴|见义勇为|职场骚扰/,L=>(TR(L).violent||0)>=3,L=>({t:'用拳头解决',d:'你脾气冲是出了名的',w:.7,f:L=>{if(rnd()<.4){log(L,'对方被你吓住了。','echo');}else{L.flags.record=1;L.money.liq-=cNow(L).g*.3;log(L,'你又动了手。这一次，警察把你带走了。','echoBad');}}})]];
+const _queueNet=queue;
+queue=function(L,ev){if(L&&ev&&ev.title&&ev.opts&&!ev._net){ev._net=1;for(const[re,cond,mk]of NETOPT){try{if(re.test(ev.title+(ev.text||''))&&cond(L)){ev.opts=[...ev.opts,mk(L)];break;}}catch(e){}}}return _queueNet(L,ev);};
+// ---- people and secrets from the past come back ----
+function netTick(L,c){const N=L.net;if(!N||L.queue.length||rnd()>.12)return;
+  const pool=[];if(N.ties.length)pool.push('tie');if(N.grudges.length)pool.push('grudge');if(N.secrets.length)pool.push('secret');if(!pool.length)return;const k=pick(pool);
+  if(k==='tie'){const x=N.ties.shift();queue(L,{title:'故人',text:`${x.a}岁那年，在「${x.src}」里，你「${x.t}」。今天，那件事里的人找到了你。`,opts:[
+    {t:'接受TA的谢意',w:1,f:L=>{L.money.liq+=c.g*(.2+rnd()*.6);bump(L,'happy',4);log(L,'TA带了很多东西来，说这些年一直记着你。','echo');}},
+    {t:'请TA帮你一个忙',w:1,f:L=>{if(L.job){L.job.z+=.08;log(L,'TA帮你引荐了一个人。后来，那个人成了你最重要的客户/贵人。','echo');}else{findJob(L,c);log(L,'TA帮你找了一份工作。','echo');}}},
+    {t:'说“举手之劳，不用谢”',w:1,f:L=>{bump(L,'social',6);bump(L,'mind',3);log(L,'TA眼睛红了。你们后来成了很好的朋友。','echo');}}]});}
+  else if(k==='grudge'){const x=N.grudges.shift();queue(L,{title:'冤家路窄',text:`${x.a}岁那年，在「${x.src}」里，你「${x.t}」。当年被你伤到的人，现在${pick(['成了你的新领导','成了你孩子学校的校长','住进了你家对门','在你要办的事上说了算'])}。`,opts:[
+    {t:'当面道歉',w:1,f:L=>{if(rnd()<.6){bump(L,'social',4);bump(L,'mind',4);log(L,'TA愣了一下，然后说：“都过去了。”','echo');}else{bump(L,'happy',-4);log(L,'TA冷冷地说：“晚了。”','echoBad');}}},
+    {t:'装作不认识',w:1,f:L=>{if(rnd()<.5){if(L.job)L.job.z-=.1;bump(L,'happy',-4);log(L,'TA一直记着。那几年，你处处碰壁。','echoBad');}else log(L,'TA好像真的不记得你了。','echo');}},
+    {t:'针锋相对',w:.5,f:L=>{TR(L).violent=(TR(L).violent||0)+1;if(rnd()<.35)log(L,'你赢了这一回合。','echo');else{bump(L,'happy',-6);if(L.job&&rnd()<.4){L.job=null;log(L,'你斗不过TA，最后丢了工作。','echoBad');}else log(L,'你们斗了好几年，两败俱伤。','echoBad');}}}]});}
+  else{const x=N.secrets.shift();queue(L,{title:'旧账',text:`${x.a}岁那年，在「${x.src}」里，你「${x.t}」。这件事，被人翻出来了。`,opts:[
+    {t:'坦白承认',w:1,f:L=>{bump(L,'social',-4);bump(L,'mind',6);TR(L).honest=(TR(L).honest||0)+1;log(L,'说出来以后，你反而睡得踏实了。有人疏远了你，也有人说你“有担当”。','echo');}},
+    {t:'矢口否认',w:1,f:L=>{TR(L).deceit=(TR(L).deceit||0)+1;if(rnd()<.5)log(L,'没人能证明什么。事情不了了之。','echo');else{bump(L,'social',-10);if(L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel-12,0,100);log(L,'证据摆在面前。现在，不止一件事被人翻了出来。','echoBad');}}}]});}}
+const _careerNet=career;
+career=function(L,c){_careerNet(L,c);if(L.alive)netTick(L,c);};
+// a short description of who you have become
+function netHTML(L){const T=TR(L);const top=Object.entries(T).filter(([k,v])=>v>=2).sort((a,b)=>b[1]-a[1]).slice(0,5);if(!top.length)return'';const N=L.net||{ties:[],grudges:[],secrets:[]};
+  return`<div class="sec"><h4>你的为人</h4><p class="small">${top.map(([k,v])=>`${TAGN[k]} ${v}`).join(' · ')}</p><p class="xs muted">由你做过的选择累积而来。它会改变之后同类选择的成败，解锁一些只有你才有的选项。${N.ties.length?`欠你人情的人：${N.ties.length} 个。`:''}${N.grudges.length?`记恨你的人：${N.grudges.length} 个。`:''}${N.secrets.length?`没被翻出来的旧账：${N.secrets.length} 件。`:''}</p></div>`;}
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -3478,7 +3543,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.9',APP_DATE='2026-10-19';
+const APP_VER='4.0',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -3811,7 +3876,7 @@ function tLife(L,c){
    <p class="xs muted">${keyOnly?'只显示升学、工作、恋爱婚姻、生老病死这些大事。切到“全部”能看到每一天的小事。':'点一行可以加星，加星的会一直显示在重点里。'}</p></div>
    <div class="sec"><h4>今年的重心 · 随时可以改</h4>${L.age>=6?`<div class="seg" id="focusSeg">${seg(items,L.focus)}</div>`:'<p class="muted small">还小，正在长大。六岁以后可以选择每年的重心。</p>'}</div>
    ${careerHTML(L)?`<details class="sec fold"><summary>职业 · ${L.job?esc(jobName(L.job)):''}</summary>${careerHTML(L)}</details>`:''}
-   <details class="sec fold"><summary>天赋、心愿和人生曲线</summary>${talentsWishesHTML(L)}<div class="sec"><h4>到现在为止的曲线</h4>${lifeCurve(L)}</div></details>
+   <details class="sec fold"><summary>为人、天赋、心愿和人生曲线</summary>${netHTML(L)}${talentsWishesHTML(L)}<div class="sec"><h4>到现在为止的曲线</h4>${lifeCurve(L)}</div></details>
    ${L.need?`<details class="sec fold"><summary>幸福从哪里来</summary>${needsHTML(L,c)}</details>`:''}
    <details class="small muted"><summary>四个数值代表什么</summary><p>健康决定你的死亡风险乘数，也影响能不能继续工作，会随年龄自然下降。幸福是对生活的满意程度，受收入、伴侣、孩子、健康和负债影响，基准来自当地的生活满意度。知识影响升学、找工作和收入，家庭条件和当地教育水平影响更大。人际影响遇见伴侣的机会、关系好坏和晚年是否孤单。数值高只是提高可能性，不决定结果。</p></details>`;
 }
