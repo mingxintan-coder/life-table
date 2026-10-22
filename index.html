@@ -386,6 +386,8 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .gctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px}
 .gctl .btn{padding:.35em .9em;font-size:13px}
 .gctl select{font:inherit;font-size:13px;padding:3px 6px;border:1px solid var(--rule);border-radius:var(--r);background:var(--sheet);color:var(--ink)}
+.feed .fl.k-echo{color:var(--accent);font-style:italic}.feed .fl.k-echoBad{color:var(--bad);font-style:italic}
+.log li.k-echo span:nth-child(2){color:var(--accent)}.log li.k-echoBad span:nth-child(2){color:var(--bad)}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -3302,6 +3304,101 @@ function othersDo(L,k){const o=OTHERS.find(x=>x[0]===k),c=cNow(L);if(!o||L.teach
   const cost=c.g*o[3];if(L.money.liq<cost){log(L,'手头有点紧，改天吧。','money');return;}L.money.liq-=cost;L.otherY[k]=L.age;L.flags.first=1;
   o[5](L,c);
   if(!L.partner&&rnd()<.04){L.chronic+=.3;bump(L,'health',-3);log(L,'后来你去做了一次检查，医生让你以后注意保护。','health');}}
+
+// ================= 后果与长远影响：每个选择都会留下痕迹 =================
+// 1) 每次抉择的即时变化，会有一部分在之后几年慢慢继续起作用（drift）
+// 2) 多年以后，当年的选择可能“回响”（echo）
+// 3) 亲密、买车、买房、多套房产都有持续的代价和后果
+function later(L,yrs,kind,data){(L.later=L.later||[]).push({at:L.age+yrs,kind,data:data||{}});}
+const _resolveC=resolve;
+resolve=function(L,opt){const ev=L.queue[0],s0={...L.st},n0=netWorth(L),r0=L.partner&&L.partner.alive?L.partner.rel:null,P0=L.partner;
+  _resolveC(L,opt);if(!L.alive||!ev)return;
+  const c=cNow(L),d={h:L.st.health-s0.health,p:L.st.happy-s0.happy,s:L.st.social-s0.social,k:L.st.know-s0.know,m:(netWorth(L)-n0)/Math.max(1,c.g),r:P0&&L.partner===P0&&r0!=null?P0.rel-r0:0};
+  const D=L.drift=L.drift||{h:0,p:0,s:0,k:0,r:0};for(const k of['h','p','s','k','r'])D[k]+=d[k]*.6;
+  const mag=Math.abs(d.h)+Math.abs(d.p)+Math.abs(d.s)+Math.abs(d.k)+Math.abs(d.m)*20+Math.abs(d.r)*.5;
+  if(mag>=3&&!/^冲击|天劫|测灵根/.test(ev.title))(L.mem=L.mem||[]).push({a:L.age,title:ev.title,t:opt.t,d,mag});if(L.mem&&L.mem.length>60)L.mem.splice(0,L.mem.length-60);};
+// ---- echoes: a past choice comes back years later ----
+const ECHO=[
+ [/钱|买|投|借|股|币|房|车|贷|理财|彩票|生意|创业|资助|拍/,(L,m,c,good)=>good?{t:`${m.a}岁那年「${m.t}」的决定，多年后又带来了一笔意外的收获。`,fx:{m:.3+rnd()*.8,p:3}}:{t:`${m.a}岁那年「${m.t}」留下的窟窿，到现在还没完全填上。`,fx:{m:-(.2+rnd()*.5),p:-3}}],
+ [/恋|爱|婚|分手|表白|约会|伴侣|前任|亲热|今晚|二人|越界|邂逅|TA/,(L,m,c,good)=>good?{t:`你常常想起${m.a}岁那年「${m.t}」。那是你这辈子做过最对的决定之一。`,fx:{p:4,r:5}}:{t:`${m.a}岁那年「${m.t}」，到现在还会在你心里隐隐作痛。`,fx:{p:-4,mind:-4}}],
+ [/父|母|孩子|家|兄弟|姐妹|孙|老人|爸妈/,(L,m,c,good)=>good?{t:`家里人还记得${m.a}岁那年你「${m.t}」。这些年，他们一直很感激你。`,fx:{s:5,p:3}}:{t:`${m.a}岁那年你「${m.t}」，家里有人一直没有真正原谅你。`,fx:{s:-5,p:-3}}],
+ [/工作|升职|跳槽|老板|领导|同事|辞职|考|学|竞赛|研究/,(L,m,c,good)=>good?{t:`${m.a}岁时「${m.t}」攒下的东西——本事、人脉或者名声——这些年一直在帮你。`,fx:{k:3,s:3,job:.06}}:{t:`${m.a}岁那年「${m.t}」，到现在还有人在背后议论。`,fx:{s:-4,job:-.05}}],
+ [/病|医|体检|手术|烟|酒|减肥|跑|健康|药/,(L,m,c,good)=>good?{t:`${m.a}岁那年「${m.t}」，让你的身体这些年一直不错。`,fx:{h:5}}:{t:`${m.a}岁那年「${m.t}」，在你的身体里留下了一点后遗症。`,fx:{h:-6}}],
+ [/./,(L,m,c,good)=>good?{t:`你偶尔会想起${m.a}岁那年的「${m.t}」。很多事，就是从那里开始变好的。`,fx:{p:3,s:2}}:{t:`你偶尔会想起${m.a}岁那年的「${m.t}」。如果当初换一个选择，现在会不会不一样？`,fx:{p:-3}}]];
+function echoTick(L,c){if(!L.mem||!L.mem.length||rnd()>.18)return;const old=L.mem.filter(m=>L.age-m.a>=3&&!m.done);if(!old.length)return;
+  const m=wpick(old,x=>x.mag);m.done=1;const net=m.d.h+m.d.p+m.d.s+m.d.k+m.d.m*15+m.d.r*.3;const good=rnd()<(net>=0?.75:.25);
+  const key=m.title+' '+m.t;const fn=ECHO.find(([re])=>re.test(key))[1];const e=fn(L,m,c,good);const f=e.fx;
+  if(f.m)L.money.liq+=f.m*c.g;if(f.p)bump(L,'happy',f.p);if(f.s)bump(L,'social',f.s);if(f.k)bump(L,'know',f.k);if(f.h)bump(L,'health',f.h);if(f.mind)bump(L,'mind',f.mind);
+  if(f.r&&L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel+f.r,0,100);if(f.job&&L.job)L.job.z+=f.job;
+  log(L,e.t,good?'echo':'echoBad');}
+function driftTick(L){const D=L.drift;if(!D)return;const step=.12;
+  bump(L,'health',D.h*step);bump(L,'happy',D.p*step);bump(L,'social',D.s*step);bump(L,'know',D.k*step);if(L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel+D.r*step,0,100);
+  for(const k in D)D[k]*=.82;}
+// ---- 2) intimacy has lasting effects ----
+const PHYS=new Set(['massage','bath','hotel','camp','morning','dark','whisper','play','outfit','lead','follow','newplace','rain','midnight','afterwork','lunch','holiday','birthday','anniv','snow','car','balcony','beach','cabin','hotspring','kitchen','study','tent','slowdate','tease','oil','mirror','ice','feather','tie','dice','cards','strip','photo','quiet','marathon','rp_doctor','rp_teacher','rp_boss','rp_stranger','rp_old']);
+function fertile(L,P){if(!P||P.sex===L.sex)return false;const fa=L.sex==='F'?L.age:P.age;return fa>=18&&fa<=45&&L.kids.filter(k=>k.alive).length<7;}
+const _intimDoC=intimDo;
+intimDo=function(L,k){const P=L.partner,before=L.intimY&&L.intimY[k];_intimDoC(L,k);if(!P||!L.intimY||L.intimY[k]!==L.age||before===L.age)return;
+  P.bond=(P.bond||0)+1;
+  if(PHYS.has(k)&&fertile(L,P)&&!L.flags.tryKids&&rnd()<({none:.06,condom:.015,pill:.004,perm:0}[L.flags.contra]??.03)*(L.flags.dink?.5:1))later(L,1,'oops',{});
+  if(['photo'].includes(k)&&rnd()<.04)later(L,2+Math.floor(rnd()*6),'leak',{});
+  if(['hotel','rp_stranger','beach','car','balcony'].includes(k)&&rnd()<.03)later(L,0,'caught',{k});
+  if(['tie','ice','dice','strip'].includes(k)&&rnd()<.03)later(L,0,'oops2',{});};
+const _othersDoC=othersDo;
+othersDo=function(L,k){const before=L.otherY&&L.otherY[k];_othersDoC(L,k);if(!L.otherY||L.otherY[k]!==L.age||before===L.age)return;
+  const o=OTHERS.find(x=>x[0]===k);const phys=!['open'].includes(k);
+  if(phys&&rnd()<.025)later(L,1,'surprise',{who:pick(['那次旅途中的人','那晚在酒吧遇到的人','那个交友软件上认识的人','那个老朋友'])});
+  if(['colleague','trip2','online','oldflame'].includes(k)){if(rnd()<.18)later(L,1+Math.floor(rnd()*5),'blackmail',{k});if(k==='colleague'&&rnd()<.25)later(L,1,'office',{});if(L.kids.some(x=>x.alive&&x.age>=12)&&rnd()<.15)later(L,2,'kidknow',{});}
+  if(phys&&rnd()<.05)later(L,1,'sti',{});
+  if(k==='fwb'&&rnd()<.3)later(L,2,'fwbend',{});};
+// ---- 3) cars ----
+function carTick(L,c){if(!L.car)return;const lux=L.flags.luxcar;L.money.liq-=c.g*(lux?.18:.06);bump(L,'social',lux?.6:.2);
+  if(rnd()<(L.alc>=2?.03:.012)){const sev=rnd()<.25;bump(L,'health',sev?-20:-4);L.money.liq-=c.g*(sev?.8:.15);log(L,sev?'你出了一场严重的车祸，在医院躺了两个月。':'你的车被追尾了，修车花了一笔钱。','health');if(sev&&rnd()<.04){die(L,'车祸');return;}}
+  if(lux&&rnd()<.03){L.money.liq-=c.g*1;log(L,'你的豪车被人划了一长道，修了很多钱。','money');}
+  if(!L.flags.carAge)L.flags.carAge=L.age;if(L.age-L.flags.carAge>=12&&rnd()<.3){L.flags.carAge=L.age;L.money.liq-=c.g*.6;log(L,'车太旧了，你换了一辆新车。','money');}}
+SPEND2.push({g:'大手笔',k:'luxcar',n:'换一辆豪车',c:4,fx:'p+4 s+3',ok:L=>!L.flags.luxcar,run:L=>{L.car=true;L.flags.luxcar=1;L.flags.carAge=L.age;},era:L=>yearOf(L)>=1960});
+// ---- 4) many properties ----
+const PROP={flat:['小户型公寓',.6,.04,.025,.08],school:['学区房',1.4,.025,.04,.05],shop:['临街商铺',1.2,.065,.02,.18],villa:['郊外别墅',3,.02,.025,.12],tower:['市中心整层写字楼',12,.055,.02,.2],abroad:['海外公寓',1.6,.04,.03,.1]};
+// [名称, 价格倍数(相对当地普通住房), 租金回报, 平均涨幅, 空置率]
+function props(L){return L.money.props||(L.money.props=[]);}
+function propValue(L){return props(L).reduce((s,p)=>s+p.value-p.bal,0);}
+const _netWorthC=netWorth;
+netWorth=function(L){return _netWorthC(L)+(L.money.props?propValue(L):0);};
+function buyProp(L,c,k,cash){const T=PROP[k],price=housePrice(L,c)*T[1],down=cash?price:price*.3;
+  if(L.money.liq<down){log(L,'钱不够首付。','money');return false;}
+  if(c.k==='CN'&&yearOf(L)>=2011&&yearOf(L)<=2022&&props(L).length+(L.money.house?1:0)>=2&&k!=='shop'&&k!=='tower'&&k!=='abroad'){log(L,'当地限购，你名下已经有两套住房了，买不了。','money');return false;}
+  L.money.liq-=down;const loan=price-down,r=.05,n=25;props(L).push({k,value:price,bal:loan,pmt:loan?loan*r/(1-Math.pow(1+r,-n)):0,since:L.age});
+  log(L,`买下了一套${T[0]}，总价 ${fmtMoney(price)}${loan?`，贷款 ${fmtMoney(loan)}`:'，全款'}。`,'money');bump(L,'happy',2);return true;}
+function sellProp(L,i){const p=props(L)[i];if(!p)return;const tax=Math.max(0,(p.value-p.bal))*.1;L.money.liq+=p.value-p.bal-tax;log(L,`卖掉了${PROP[p.k][0]}，扣税后到手 ${fmtMoney(p.value-p.bal-tax)}。`,'money');props(L).splice(i,1);}
+function propTick(L,c){const P=props(L);if(!P.length)return;const crash=L.econ<.9;let rent=0;
+  for(const p of P){const T=PROP[p.k];p.value*=Math.exp(T[3]+randn()*.09+(crash?-.12:0));
+    if(p.bal>0){const pay=Math.min(p.bal*(1+.05),p.pmt);L.money.liq-=pay;p.bal=Math.max(0,p.bal*1.05-pay);}
+    const vac=rnd()<T[4];if(!vac)rent+=p.value*T[2];L.money.liq-=p.value*(c.g>20000?.012:.006);
+    if(rnd()<.04){const ev=pick([['租客半夜搬走，留下一屋子垃圾和三个月的欠租。',-.15],['租客把房子改成了群租，被邻居投诉，你被罚了款。',-.2],['一个好租客续租了五年，从来没拖过一天房租。',.1],['水管爆了，楼下邻居家的天花板全泡了。',-.25]]);L.money.liq+=c.g*ev[1];log(L,`${PROP[p.k][0]}：${ev[0]}`,'money');}}
+  L.money.liq+=rent;L.propRent=rent;
+  if(P.length>=3&&rnd()<.05)bump(L,'mind',-3);
+  if(L.money.liq<-c.g*2&&P.length){const i=P.findIndex(p=>p.bal>0)>=0?P.findIndex(p=>p.bal>0):0;log(L,'现金流断了，银行收走了一套房子拍卖。','money');const p=P[i];L.money.liq+=Math.max(0,p.value*.75-p.bal);P.splice(i,1);bump(L,'happy',-8);}
+  if(c.k==='CN'&&yearOf(L)>=2021&&yearOf(L)<=2024&&rnd()<.15){for(const p of P)p.value*=.9;log(L,'楼市降温，你名下几套房子的估值都缩水了。','money');}}
+const _divorceC=divorce;
+divorce=function(L,c){const P=props(L);if(P.length){const half=Math.ceil(P.length/2);for(let i=0;i<half;i++)sellProp(L,P.length-1);L.money.liq*=.75;log(L,'离婚时，名下的房产分走了一半。','money');}_divorceC(L,c);};
+// ---- process scheduled consequences ----
+function laterTick(L,c){const due=(L.later||[]).filter(x=>x.at<=L.age);if(!due.length)return;L.later=L.later.filter(x=>x.at>L.age);
+  for(const x of due){const P=L.partner;switch(x.kind){
+   case'oops':if(P&&P.alive&&!L.teach){log(L,'几个星期以后，验孕棒上出现了两道杠。','family');queue(L,{title:'意外怀孕',text:'你们没有计划要孩子，可是TA来了。',opts:[{t:'生下来',w:2,f:L=>birth(L,cNow(L))},{t:'商量之后，决定不要',w:.6,f:L=>{bump(L,'mind',-6);if(L.partner)L.partner.rel=clamp(L.partner.rel-5,0,100);log(L,'你们做了决定。那几天，家里很安静。','family');}}]});}break;
+   case'oops2':bump(L,'health',-3);log(L,'那晚玩得有点过火，第二天你们一个扭了腰，一个磕青了胳膊，去医院的时候都不好意思说怎么弄的。','intim');break;
+   case'leak':queue(L,{title:'照片',text:'你换掉的旧手机被人恢复了数据。有人发来一条消息：“你应该不想让这些照片出现在网上吧？”',opts:[{t:'报警',w:1,f:L=>{if(rnd()<.6)log(L,'警察抓到了那个人。照片没有流出去。','world');else{bump(L,'social',-10);bump(L,'mind',-10);log(L,'照片还是流出去了。那段时间，你不敢出门。','world');}}},{t:'付钱',w:.6,f:L=>{L.money.liq-=cNow(L).g*.5;if(rnd()<.4)later(L,1,'leak',{});}}]});break;
+   case'caught':bump(L,'social',-3);log(L,pick(['你们被保安敲了窗。你们一边道歉一边笑，回家的路上还在笑。','隔壁房间的人敲了墙。第二天在电梯里碰到，所有人都低着头。']),'intim');break;
+   case'surprise':if(!L.teach){queue(L,{title:'一个孩子',text:`一年以后，${x.data.who}找到了你，怀里抱着一个孩子：“TA是你的。”`,opts:[{t:'认下孩子，一起抚养',w:1,f:L=>{birth(L,cNow(L));if(L.partner&&L.partner.alive&&!L.partner.open){L.partner.rel=clamp(L.partner.rel-35,0,100);log(L,`${L.partner.name}知道了这件事。家里像结了冰。`,'love');}}},{t:'按月付抚养费',w:1,f:L=>{L.flags.support=L.age+18;log(L,'你每个月都会往一个账户里转一笔钱，转了十八年。','money');}},{t:'不认',w:.4,f:L=>{bump(L,'mind',-10);if(rnd()<.5){L.money.liq-=cNow(L).g*2;log(L,'对方去法院起诉，亲子鉴定之后，你被判支付抚养费和赔偿。','world');}}}]});}break;
+   case'blackmail':queue(L,{title:'勒索',text:'有人给你寄来一个信封，里面是你和别人在一起的照片，还有一个银行账号。',opts:[{t:'付钱',w:1,f:L=>{L.money.liq-=cNow(L).g*1;if(rnd()<.5)later(L,2,'blackmail',{});log(L,'你付了钱。你知道，这不会是最后一次。','money');}},{t:'向伴侣坦白',w:.6,f:L=>{if(L.partner&&L.partner.alive){if(rnd()<.4){L.partner.rel=clamp(L.partner.rel-25,0,100);log(L,'坦白之后，'+L.partner.name+'沉默了很久，最后说：“我们一起报警吧。”','love');}else{log(L,L.partner.name+'没有原谅你。','love');divorce(L,cNow(L));}}}},{t:'报警',w:.6,f:L=>{if(rnd()<.5)log(L,'勒索的人被抓了。但这件事，还是传到了你的伴侣耳朵里。','world');if(L.partner&&L.partner.alive)L.partner.rel=clamp(L.partner.rel-20,0,100);}}]});break;
+   case'office':if(L.job){L.job.z-=.1;bump(L,'social',-5);log(L,'公司里开始有人议论你和那个同事的事。年底评优，你落选了。','work');if(rnd()<.3){L.job=null;log(L,'后来，你被找了个理由辞退了。','work');}}break;
+   case'kidknow':{const k=L.kids.find(k=>k.alive&&k.age>=12);if(k){bump(L,'social',-6);bump(L,'mind',-6);log(L,`${k.name}看到了你手机里的消息。TA什么也没说，但从那天起，TA看你的眼神变了。`,'family');}}break;
+   case'sti':if(!L.teach){L.chronic+=.4;bump(L,'health',-5);log(L,'你身上出了点问题，去医院查出是性传播感染。医生说能治，让你告诉最近的伴侣。','health');if(L.partner&&L.partner.alive&&!L.partner.open){L.partner.rel=clamp(L.partner.rel-20,0,100);}}break;
+   case'fwbend':log(L,pick(['你们之中的一个人先动了心。那段“不谈感情”的关系，最后谈成了一场心碎。','你们说好的不谈感情，后来真的就淡了，各自找到了别人。']),'intim');bump(L,'mind',-3);break;}}
+  if(L.flags.support>L.age)L.money.liq-=c.g*.15;}
+// ---- yearly ----
+const _careerCQ=career;
+career=function(L,c){_careerCQ(L,c);if(!L.alive)return;driftTick(L);echoTick(L,c);laterTick(L,c);carTick(L,c);propTick(L,c);
+  const P=L.partner;if(P&&P.alive&&P.bond){P.rel=clamp(P.rel+Math.min(3,P.bond*.15),0,100);P.bond*=.9;}};
 </script>
 <script>(function(){
 const $=s=>document.querySelector(s);
@@ -3381,7 +3478,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.8.1',APP_DATE='2026-10-19';
+const APP_VER='3.9',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -3720,6 +3817,10 @@ function tLife(L,c){
 }
 function othersHTML(L,c,hasP){const os=othersAvail(L);if(!os.length)return'';const g=`<div class="spendgrid">${os.map(o=>{const done=L.otherY&&L.otherY[o[0]]===L.age;return`<button data-ot="${o[0]}" ${done?'disabled':''}><b>${esc(fill(o[1],L,c))}</b><span>${done?'今年已经有过了':esc(fill(o[2],L,c))}${o[3]?' · '+fmtMoney(c.g*o[3]):''}</span></button>`;}).join('')}</div>`;
   return hasP?`<details class="intim others"><summary>${L.partner&&L.partner.open?'你们的“开放”约定':'越界 · 后果自负'}</summary><p class="xs muted">${L.partner&&L.partner.open?'在约定的规矩里，你们都可以有别的人。':'可能被发现，可能离婚，也可能染上病。'}</p>${g}</details>`:`<div class="intim"><h5>邂逅 <span class="xs muted">单身的时候，你可以主动一点</span></h5>${g}</div>`;}
+function propHTML(L,c){if(SOC.has(c.k)&&yearOf(L)<1995)return'';const P=L.money.props||[],pr=housePrice(L,c);
+  const own=P.length?`<div class="tbl">${P.map((p,i)=>`<div>${PROP[p.k][0]}<span class="xs muted"> · 估值 ${fmtMoney(p.value)}${p.bal>0?' · 欠贷 '+fmtMoney(p.bal):''}</span></div><div><button class="linkbtn" data-ps="${i}">卖掉</button></div>`).join('')}</div><p class="xs muted">今年租金收入约 ${fmtMoney(L.propRent||0)}。房子会涨也会跌，会空置，会遇到坏租客，要交税和维修费；现金流断了银行会收房。离婚时要分走一半。</p>`:'<p class="xs muted">名下还没有用来投资的房产。</p>';
+  const buy=Object.entries(PROP).filter(([k])=>k!=='abroad'||c.g>8000).map(([k,T])=>{const price=pr*T[1];return`<button data-pb="${k}" ${L.money.liq<price*.3?'disabled':''}><b>${T[0]}</b><span>${fmtMoney(price)} · 首付 ${fmtMoney(price*.3)} · 租金回报约 ${(T[2]*100).toFixed(1)}%</span></button>`;}).join('');
+  return`<div class="sec"><h4>房产投资 · ${P.length} 套</h4>${own}<div class="spendgrid">${buy}</div></div>`;}
 function tFamily(L,c){
   const P=L.partner;
   const par=`<div class="tbl"><div>父亲</div><div>${L.father.alive?L.father.age+'岁':'已故'}</div><div>母亲</div><div>${L.mother.alive?L.mother.age+'岁':'已故'}</div><div>兄弟姐妹</div><div>${L.sibs}</div><div>结婚 / 分开 / 丧偶</div><div>${L.marriages} / ${L.exes} / ${L.widowed}</div><div>孙辈</div><div>${L.grandkids}</div></div>`;
@@ -3762,7 +3863,7 @@ function tMoney(L,c){
    <p class="small muted">去年基金收益 ${(L.ret.f*100).toFixed(1)}%，高风险资产 ${(L.ret.r*100).toFixed(1)}%，存款 2%。${L.econ<1?' 当前经济危机中，收入打了折扣。':''}</p></div>
    <div class="sec"><h4>储蓄率</h4><div class="seg" id="saveSeg">${seg([0,.1,.2,.3,.4].map(v=>({v:String(v),n:Math.round(v*100)+'%'})),String(L.saveRate))}</div><p class="small muted">收入里存下来的比例。收入很低时，基本生活优先，实际存不了这么多。</p></div>
    <div class="sec"><h4>钱放在哪里</h4><div class="seg" id="allocSeg">${seg(Object.entries(ALLOC).map(([k,a])=>({v:k,n:{con:'存银行',bal:'存款加基金',agg:'主要买股票'}[k]})),L.alloc)}</div><p class="small muted">${{con:'八成存款、两成基金',bal:'四成存款、五成半基金、半成高风险资产',agg:'一成存款、七成基金、两成高风险资产'}[L.alloc]}，每年按比例再平衡。基金长期年化约 6%、波动 16%；高风险资产波动 55%；每年约 6% 的概率遇上大跌。</p></div>
-   <div class="sec"><h4>住房</h4>${H?`<p>有房，每年还贷 ${fmtMoney(H.bal>0?H.pmt:0)}，能抵掉一部分房租开销。</p><div class="actions"><button data-a="sell">卖掉房子（到手约 ${fmtMoney(H.value-H.bal)}）</button></div>`:`<p>当地一套普通住房约 ${fmtMoney(pr)}，首付三成加税费需 ${fmtMoney(pr*.33)}。</p><div class="actions"><button class="pri" data-a="buy" ${M.liq<pr*.33||(SOC.has(c.k)&&yearOf(L)<1995)?'disabled':''}>买房</button>${SOC.has(c.k)&&yearOf(L)<1995?'<span class="xs muted">这个年代住房由单位分配，还不能自由买卖</span>':''}</div>`}</div>`;
+   <div class="sec"><h4>住房</h4>${H?`<p>有房，每年还贷 ${fmtMoney(H.bal>0?H.pmt:0)}，能抵掉一部分房租开销。</p><div class="actions"><button data-a="sell">卖掉房子（到手约 ${fmtMoney(H.value-H.bal)}）</button></div>`:`<p>当地一套普通住房约 ${fmtMoney(pr)}，首付三成加税费需 ${fmtMoney(pr*.33)}。</p><div class="actions"><button class="pri" data-a="buy" ${M.liq<pr*.33||(SOC.has(c.k)&&yearOf(L)<1995)?'disabled':''}>买房</button>${SOC.has(c.k)&&yearOf(L)<1995?'<span class="xs muted">这个年代住房由单位分配，还不能自由买卖</span>':''}</div>`}</div>${propHTML(L,c)}`;
 }
 function survChart(L){
   const l=cohortL(L.born,L.sex,L.by,L.world),w=340,h=170,X=a=>34+a*(w-44)/100,Y=v=>h-24-v*(h-36);
@@ -3845,6 +3946,8 @@ function wirePanel(L,c){
   P.querySelectorAll('.log li').forEach(li=>li.onclick=()=>{const e=L.log[+li.dataset.li];if(e){e.s=!e.s;render();}});
   P.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{let ok;inline(()=>{ok=spend(L,b.dataset.sp);});if(ok){const w=ALLOC[L.alloc];L.money.dep=L.money.liq*w.d;L.money.fund=L.money.liq*w.f;L.money.risky=L.money.liq*w.r;}render();});
   P.querySelectorAll('[data-in]').forEach(b=>b.onclick=()=>{inline(()=>intimDo(L,b.dataset.in));saveCur();render();});
+  P.querySelectorAll('[data-pb]').forEach(b=>b.onclick=()=>{inline(()=>buyProp(L,cNow(L),b.dataset.pb));saveCur();render();});
+  P.querySelectorAll('[data-ps]').forEach(b=>b.onclick=()=>{inline(()=>sellProp(L,+b.dataset.ps));saveCur();render();});
   P.querySelectorAll('[data-ot]').forEach(b=>b.onclick=()=>{inline(()=>othersDo(L,b.dataset.ot));saveCur();render();});
   P.querySelectorAll('details.others').forEach(d=>{d.open=!!G.othersOpen;d.ontoggle=()=>{G.othersOpen=d.open;};});
   P.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{inline(()=>{
