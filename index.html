@@ -383,6 +383,9 @@ details.morecfg>summary{cursor:pointer;color:var(--mute);font-size:14px;padding:
 .intim button:disabled{opacity:.5}
 .feed .fl.k-intim{color:var(--red)}.log li.k-intim span:nth-child(2){color:var(--red)}
 .intim.others>summary{cursor:pointer;font-size:13px;color:var(--mute);padding:4px 0}
+.gctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px}
+.gctl .btn{padding:.35em .9em;font-size:13px}
+.gctl select{font:inherit;font-size:13px;padding:3px 6px;border:1px solid var(--rule);border-radius:var(--r);background:var(--sheet);color:var(--ink)}
 </style>
 <div class="wrap">
   <header class="mast" id="mast"><button class="mark" data-go="home">此生生命表</button><span class="ver" id="verTag"></span>
@@ -3112,7 +3115,7 @@ E('a20-70 y2045-2100',1,'一天工作三小时','你的单位实行一天三小�
 // ================= 家人与伴侣：更多抉择（原创文本；亲密情节点到为止，只涉及成年人，教学模式关闭） =================
 const AD={adult:1};
 // ---------- 父母 ----------
-E('a6-15 par',1,'父母吵架','半夜，你听见{par}和另一个在客厅里吵得很凶，摔了东西。',[['出去劝','s+1','你站在门口，他们都愣住了，不吵了。'],['捂着耳朵假装睡着','p-3','你一夜没睡。'],['第二天问他们是不是要离婚','','',.7,'p+1','他们抱了抱你，说不会。','p-6','他们沉默了很久。']]);
+E('a6-15 par',1,'父母吵架','半夜，你听见爸妈在客厅里吵得很凶，摔了东西。',[['出去劝','s+1','你站在门口，他们都愣住了，不吵了。'],['捂着耳朵假装睡着','p-3','你一夜没睡。'],['第二天问他们是不是要离婚','','',.7,'p+1','他们抱了抱你，说不会。','p-6','他们沉默了很久。']]);
 E('a8-16 par',1,'家长会','{par}去开家长会，回来脸色很难看。',[['主动认错','k+1','{par}叹了口气，说下次努力。'],['顶嘴','p-2','你们大吵了一架。'],['躲进房间','','']]);
 E('a10-17 par',1,'第一次顶嘴','{par}不让你和朋友出去玩。',[['偷偷溜出去','p+2','',.6,'','没被发现。','p-3','被抓了个正着，禁足一个月。'],['好好商量','s+1','',.5,'p+2','{par}答应了，让你九点前回家。',''],['听话','','']]);
 E('a18-30 par',1,'报喜不报忧','你在外面过得不太好。{par}打电话问你怎么样。',[['说一切都好','p-1','你挂了电话，在被子里哭了。'],['说实话','s+2','',.6,'p+3','{par}没骂你，只说：“回家吧，家里有饭。”','p-2','{par}着急得一夜没睡，第二天就坐车来看你。']]);
@@ -3378,7 +3381,7 @@ setInterval(()=>{const a=$('#cBirth'),b=$('#cDeath');if(!a)return;const s=(Date.
 function birthProbs(year){const tot=C.reduce((s,d)=>s+at(d.s.b,year),0);return C.map(d=>({k:d.k,n:d.n,p:at(d.s.b,year)/tot})).sort((a,b)=>b.p-a.p);}
 function memCard(m){const n=S.candles[m.id]||0,msgs=(S.notes[m.id]||[]).length;return`<button class="mcard" data-go="memo" data-arg="${esc(m.id)}"><div class="t"><b>${esc(m.nm)}</b><span class="candles"><span class="flame"></span>${n}</span></div><div class="s">${esc(cname(m.born))} · ${esc(m.by)}–${esc(m.by+m.age)} · ${m.age===0?'不满一岁':esc(m.age)+'岁'} · ${esc(m.cause)}${msgs?` · ${msgs} 条留言`:''}</div>${m.words?`<div class="q">「${esc(m.words)}」</div>`:''}</button>`;}
 function storyCard(s){return`<div class="mcard"><div class="t"><b>${esc(cname(s.born))}的${s.sex==='M'?'男人':'女人'}，${s.age===0?'不满一岁':esc(s.age)+'岁'}</b><span class="xs muted num">${esc(s.by)}–${esc(s.by+s.age)}</span></div><div class="s">${esc(s.line||'')}</div>${s.text?`<div class="q">${esc(s.text)}</div>`:''}</div>`;}
-const APP_VER='3.8',APP_DATE='2026-10-19';
+const APP_VER='3.8.1',APP_DATE='2026-10-19';
 const curMode=()=>pref.cheat?'cheat':pref.daily?'daily':'normal';
 function pHome(){
   const probs=birthProbs(2025);const top=probs.slice(0,8),mx=top[0].p;
@@ -3544,16 +3547,19 @@ function startLife(resume){
   $('#view').innerHTML=`<div class="gtop"><div class="who"><b id="gName"></b><span class="xs muted" id="gMeta"></span></div><div class="gage"><span class="num" id="gAge">0</span><small>岁</small><span class="xs muted num" id="gYear"></span></div></div>
    <div class="ministats" id="gStats"></div><div class="yearbar"><i id="gProg"></i></div>
    <div class="dialog" id="gDialog"><div class="feed" id="gFeed"></div><div id="gEvent"></div></div>
+   <div class="gctl" id="gCtl"><button class="btn" id="cPlay"></button><label class="xs muted">速度 <select id="cMul"></select></label><button class="btn ghost" id="cSkip">快转到下一个抉择</button><button class="btn ghost" id="cNext">下一年 »</button></div>
    <div class="gfocus" id="gFocus"></div>
    <div id="gXian"></div>
    <button class="linkbtn moreBtn" id="moreBtn"></button>
    <div id="gMore" hidden><nav class="tabs" role="tablist" id="tabs">${[['life','人生'],['family','家人与生活'],['money','花钱·投资'],['act','精算'],['peers','同一秒出生的人']].map(([k,n])=>`<button data-t="${k}" aria-selected="${k==='life'}">${n}</button>`).join('')}</nav>
    <div class="panel" id="gPanel"></div></div>`;
   $('#moreBtn').onclick=()=>{G.more=!G.more;render();};
+  $('#cPlay').onclick=()=>$('#playBtn').click();$('#cSkip').onclick=()=>$('#skipBtn').click();$('#cNext').onclick=()=>$('#nextBtn').click();
+  $('#cMul').onchange=e=>{pref.mul=+e.target.value;savePref();paintDock();};
   $('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;G.tab=b.dataset.t;render();};
   paintDock();G.lastT=performance.now();clearInterval(G.timer);G.timer=setInterval(tick,100);render();saveCur();
 }
-function paintDock(){$('#mulSeg').innerHTML=seg(MULS.map((m,i)=>({v:i,n:m+'×'})),pref.mul);$('#autoBtn').setAttribute('aria-pressed',String(G.auto));$('#playBtn').textContent=G.playing?'暂停':'继续';}
+function paintDock(){{const cp=$('#cPlay');if(cp)cp.textContent=G.playing?'暂停':'继续';const cm=$('#cMul');if(cm){if(!cm.options.length)cm.innerHTML=MULS.map((m,i)=>`<option value="${i}">${m}×</option>`).join('');cm.value=String(pref.mul);}}$('#mulSeg').innerHTML=seg(MULS.map((m,i)=>({v:i,n:m+'×'})),pref.mul);$('#autoBtn').setAttribute('aria-pressed',String(G.auto));$('#playBtn').textContent=G.playing?'暂停':'继续';}
 onSeg($('#mulSeg'),v=>{pref.mul=+v;savePref();paintDock();});
 $('#playBtn').onclick=()=>{G.playing=!G.playing;G.lastT=performance.now();paintDock();};
 $('#autoBtn').onclick=()=>{G.auto=!G.auto;paintDock();saveCur();};
